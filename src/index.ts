@@ -54,7 +54,7 @@ async function main() {
   });
 
   const allTools = [
-    makeCalculateQuoteTool(engine),
+    makeCalculateQuoteTool(engine, limiter),
     makeLookupKnowledgeTool(kb),
     makeGetProductInfoTool(),
     makeEscalateToHumanTool(),
@@ -62,7 +62,7 @@ async function main() {
 
   // Fix #2: registrar el wizard de cotización (grammY conversations).
   bot.use(conversations() as never);
-  bot.use(createConversation(makeQuoteConversation(sm, engine) as never, "quote") as never);
+  bot.use(createConversation(makeQuoteConversation(sm, engine, limiter) as never, "quote") as never);
 
   bot.command("cotizar", async (ctx) => {
     await (ctx as never as { conversation: { enter: (n: string) => Promise<void> } }).conversation.enter("quote");
@@ -71,9 +71,9 @@ async function main() {
   // Fix #3: la lógica vive como middleware de grammY (no en un handleUpdate manual).
   // Polling y webhook ambos corren el pipeline vía bot.handleUpdate().
   bot.on("message:text", async (ctx) => {
-    const chatId = String(ctx.chat.id);
-    const text = ctx.message.text;
-    const updateId = ctx.update.update_id;
+    const normalized = channel.normalizeIn(ctx.update); // aplica allowlist de chats
+    if (!normalized) return;
+    const { chatId, text, updateId } = normalized;
 
     if (!(await sessionRepo.markProcessed(updateId))) return; // idempotencia
     if (!limiter.allowMessage(chatId)) {

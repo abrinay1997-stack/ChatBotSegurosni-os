@@ -40,6 +40,25 @@ describe("Groq provider (contract, fake fetch)", () => {
     expect(r.content).toBe("hola");
     expect(r.toolCalls).toBeUndefined();
   });
+  it("traduce mensajes assistant/tool al formato wire OpenAI (tool_calls + tool_call_id)", async () => {
+    let captured: any = {};
+    const spy: FetchImpl = async (_url, init) => {
+      captured = { url: _url, init };
+      return { json: async () => textResponse, ok: true, status: 200 };
+    };
+    const p = createGroqProvider({ apiKey: "k", fetchImpl: spy });
+    await p.chat({
+      messages: [
+        { role: "user", content: "cotiza" },
+        { role: "assistant", toolCalls: [{ id: "tc1", name: "calculateQuote", arguments: { a: 1 } }] },
+        { role: "tool", toolCallId: "tc1", content: '{"ok":true}' },
+      ],
+    });
+    const body = JSON.parse(captured.init.body as string);
+    expect(body.messages[1].tool_calls[0]).toMatchObject({ id: "tc1", type: "function" });
+    expect(body.messages[1].tool_calls[0].function.name).toBe("calculateQuote");
+    expect(body.messages[2].tool_call_id).toBe("tc1");
+  });
   it("envía Authorization Bearer + body con modelo correcto", async () => {
     let captured: any = {};
     const spy: FetchImpl = async (_url, init) => {

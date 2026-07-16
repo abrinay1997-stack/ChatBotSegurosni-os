@@ -2,18 +2,24 @@ import type { Context } from "grammy";
 import type { Conversation } from "@grammyjs/conversations";
 import type { SessionManager } from "../session.manager.js";
 import type { QuoteEngine } from "../../domain/quote/QuoteEngine.js";
+import type { RateLimiter } from "../../shared/ports/index.js";
 
 // Wizard de cotización guiado vía @grammyjs/conversations.
 // Fija consentimiento parental antes de calcular (gate de compliance).
-export function makeQuoteConversation(sm: SessionManager, engine: QuoteEngine) {
+export function makeQuoteConversation(sm: SessionManager, engine: QuoteEngine, limiter?: RateLimiter) {
   return async function quoteConversation(conversation: Conversation<Context>, ctx: Context) {
+    const chatId = String(ctx.chat!.id);
+    if (limiter && !limiter.allowQuote(chatId)) {
+      await ctx.reply("Límite de cotizaciones alcanzado. Esperá un momento o pedí que te derive a un asesor.");
+      return;
+    }
     await ctx.reply("Para cotizar necesito tu consentimiento para tratar datos de la cotización.");
     const consent = await conversation.waitFor(["message:text"]);
     if (!/^(s[ií]|si|yes|claro)/i.test(consent.message.text ?? "")) {
       await ctx.reply("Sin problema, no cotizo. Puedo ayudarte con otras dudas.");
       return;
     }
-    await sm.setConsent(String(ctx.chat!.id));
+    await sm.setConsent(chatId);
 
     await ctx.reply("Edad del padre/tutor (18-70)?", {
       reply_markup: { keyboard: [[{ text: "18-30" }, { text: "31-40" }], [{ text: "41-50" }, { text: "51-70" }]] },

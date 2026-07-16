@@ -16,4 +16,19 @@ describe("calculateQuote tool", () => {
     expect((r as any).primaMensual).toBeGreaterThan(0);
     expect((r as any).terms).toMatch(/ejemplo/i);
   });
+
+  it("respeta el RateLimiter de cotizaciones cuando se le inyecta uno", async () => {
+    const t = {
+      ejemplo: true,
+      basePorEdadPadre: [{ edadMin: 18, edadMax: 70, factor: 1 }],
+      factorPorPlazo: { "10": 1.6 },
+      factorPorMonto: [{ montoMin: 1000, factor: 1 }],
+      tasaBaseMensual: 0.004,
+    };
+    const limiter = { allowMessage: () => true, allowQuote: () => false };
+    const tool = makeCalculateQuoteTool(createQuoteEngine(t as any), limiter);
+    await expect(
+      tool.handler({ edadPadre: 30, edadNino: 5, montoCobertura: 10000, plazo: 10 }, { chatId: "1" } as any),
+    ).rejects.toThrow(/límite/i);
+  });
 });

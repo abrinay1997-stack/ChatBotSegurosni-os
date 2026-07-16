@@ -39,4 +39,25 @@ describe("tool registry", () => {
     expect(calls).toBe(3);
     expect(res.truncated).toBe(true);
   });
+  it("la 2da ronda incluye el mensaje assistant con tool_calls y el tool con tool_call_id (formato OpenAI-compatible)", async () => {
+    const seenRequests: any[] = [];
+    let call = 0;
+    const fake: LLMProvider = {
+      async chat(req) {
+        seenRequests.push(req.messages);
+        call++;
+        if (call === 1) {
+          return { toolCalls: [{ id: "tc1", name: "add", arguments: { a: 2, b: 3 } }], usage: { promptTokens: 0, completionTokens: 0 } };
+        }
+        return { content: "listo", usage: { promptTokens: 0, completionTokens: 0 } };
+      },
+    };
+    const res = await runToolLoop({ provider: fake, tools: [add], messages: [{ role: "user", content: "sumá" }], ctx: {} as any, maxRounds: 3 });
+    expect(res.finalResponse).toBe("listo");
+    const secondRoundMessages = seenRequests[1];
+    const assistantMsg = secondRoundMessages.find((m: any) => m.role === "assistant");
+    expect(assistantMsg?.toolCalls?.[0]).toMatchObject({ id: "tc1", name: "add" });
+    const toolMsg = secondRoundMessages.find((m: any) => m.role === "tool");
+    expect(toolMsg?.toolCallId).toBe("tc1");
+  });
 });
