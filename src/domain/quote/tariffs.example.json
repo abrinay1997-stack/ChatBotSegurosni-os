@@ -1,0 +1,16 @@
+{
+  "ejemplo": true,
+  "basePorEdadPadre": [
+    { "edadMin": 18, "edadMax": 30, "factor": 1.0 },
+    { "edadMin": 31, "edadMax": 40, "factor": 1.4 },
+    { "edadMin": 41, "edadMax": 50, "factor": 1.9 },
+    { "edadMin": 51, "edadMax": 70, "factor": 3.0 }
+  ],
+  "factorPorPlazo": { "1": 1.0, "5": 1.3, "10": 1.6, "20": 2.1 },
+  "factorPorMonto": [
+    { "montoMin": 1000, "factor": 1.0 },
+    { "montoMin": 50000, "factor": 0.95 },
+    { "montoMin": 100000, "factor": 0.9 }
+  ],
+  "tasaBaseMensual": 0.004
+}
