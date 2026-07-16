@@ -20,7 +20,20 @@
 
 ---
 
-### Task 1: Provisionar Neon (manual, sin código)
+### Task 1: Provisionar Neon (manual, sin código) — ✅ COMPLETADA 2026-07-16
+
+Ejecutada vía `neonctl` (CLI oficial de Neon) en vez de manualmente por el dashboard —
+más rápido y reproducible. Datos para referencia de la Tarea 8:
+
+- Proyecto: `chatbot-seguros`, `project-id: divine-dew-54950769`, región `aws-us-east-1`.
+- Rama `production` (default del proyecto): sin branch-id propio adicional, es la rama base.
+- Rama `dev`: `branch-id: br-flat-shadow-avagwd0k` — connection string ya en `.env` local.
+- Rama `test`: `branch-id: br-cold-lab-avttsn20` — connection string ya en `.env.test` local.
+- Para obtener el connection string de `production` en la Tarea 8:
+  `npx neonctl connection-string --project-id divine-dew-54950769` (sin `--branch-id` devuelve la rama por defecto).
+
+<details>
+<summary>Pasos originales (referencia, ya no hace falta seguirlos manualmente)</summary>
 
 **Files:** ninguno (esto es un paso operativo, no de código). Al final se edita `.env` y se crea `.env.test` (no versionados).
 
@@ -95,6 +108,8 @@ git commit -m "chore: prepara .gitignore para .env.test (Neon)"
 ```
 
 (`.env` y `.env.test` mismos NO se commitean — solo el cambio en `.gitignore`.)
+
+</details>
 
 ---
 
