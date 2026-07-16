@@ -1,4 +1,4 @@
-import type { ToolDef, ToolCall, LLMResponse, LLMChatRequest, LLMProvider } from "./llm-provider.js";
+import type { ToolDef, ToolCall, LLMResponse, LLMChatRequest, LLMProvider, LLMUsage } from "./llm-provider.js";
 
 export interface Config {
   telegramBotToken: string;
@@ -24,7 +24,7 @@ export interface Logger {
   child(meta: Record<string, unknown>): Logger;
 }
 
-export type { ToolDef, ToolCall, LLMResponse, LLMChatRequest, LLMProvider };
+export type { ToolDef, ToolCall, LLMResponse, LLMChatRequest, LLMProvider, LLMUsage };
 
 export interface NormalizedMessage {
   chatId: string;
