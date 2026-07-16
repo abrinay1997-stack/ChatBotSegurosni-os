@@ -6,7 +6,7 @@
     "node": ">=20"
   },
   "scripts": {
-    "build": "tsc",
+    "build": "tsc -p tsconfig.build.json && node scripts/copy-prompts.mjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",

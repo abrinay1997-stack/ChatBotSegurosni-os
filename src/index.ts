@@ -43,7 +43,10 @@ async function main() {
   const llm = cfg.llmProvider === "groq"
     ? createGroqProvider({ apiKey: cfg.groqApiKey ?? "" })
     : createGlmProvider({ apiKey: cfg.glmApiKey ?? "" });
-  const cost = createCostGuard({ budgetUsd: cfg.llmDailyBudgetUsd, pricePer1k: { input: 0.17, output: 0.43 } });
+  // Precio real de Groq llama-3.3-70b-versatile: $0.59 / $0.79 por millón de
+  // tokens (input/output) — los valores anteriores (0.17/0.43 por MIL) eran
+  // ~300-500x más caros que el real y disparaban el budget guard casi de inmediato.
+  const cost = createCostGuard({ budgetUsd: cfg.llmDailyBudgetUsd, pricePer1k: { input: 0.00059, output: 0.00079 } });
   const limiter = createRateLimiter({ msgsPerMin: 20, quotesPerHour: 10, globalQuotesPerMin: 5 });
   const { bot, channel, start } = createTelegramChannel({
     token: cfg.telegramBotToken,
