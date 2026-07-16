@@ -23,8 +23,15 @@ export interface LLMResponse {
   usage: LLMUsage;
 }
 
+export interface ChatMessage {
+  role: "system" | "user" | "assistant" | "tool";
+  content?: string;
+  toolCalls?: ToolCall[]; // solo role: "assistant" — la llamada a tool que originó la ronda
+  toolCallId?: string;    // solo role: "tool" — referencia al ToolCall que responde
+}
+
 export interface LLMChatRequest {
-  messages: { role: "system" | "user" | "assistant" | "tool"; content: string }[];
+  messages: ChatMessage[];
   tools?: ToolDef[];
   toolChoice?: "auto" | "none";
 }

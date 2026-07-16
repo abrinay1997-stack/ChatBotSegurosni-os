@@ -1,5 +1,5 @@
 import type { ZodSchema } from "zod";
-import type { LLMProvider, ToolCall } from "../../shared/ports/index.js";
+import type { ChatMessage, LLMProvider, ToolCall } from "../../shared/ports/index.js";
 
 export interface ToolCtx {
   // inyectado por composition root: repos, QuoteEngine, logger
@@ -50,7 +50,7 @@ export interface ToolLoopResult {
 export async function runToolLoop(opts: {
   provider: LLMProvider;
   tools: Tool[];
-  messages: { role: "system" | "user" | "assistant" | "tool"; content: string }[];
+  messages: ChatMessage[];
   ctx: ToolCtx;
   maxRounds?: number;
 }): Promise<ToolLoopResult> {
@@ -72,25 +72,30 @@ export async function runToolLoop(opts: {
     if (!res.toolCalls?.length) {
       return { toolResults, finalResponse: res.content, truncated: false, usage: totalUsage };
     }
+    // El mensaje assistant con tool_calls DEBE preceder a los mensajes tool
+    // que lo responden — las APIs OpenAI-compatible (Groq/GLM) rechazan la
+    // request si falta (400) o si un mensaje "tool" no trae tool_call_id.
+    messages.push({ role: "assistant", content: res.content, toolCalls: res.toolCalls });
     for (const tc of res.toolCalls) {
       const tool = opts.tools.find((t) => t.name === tc.name);
       if (!tool) {
         toolResults.push({ toolCallId: tc.id, name: tc.name, ok: false, error: `tool desconocido: ${tc.name}` });
+        messages.push({ role: "tool", toolCallId: tc.id, content: JSON.stringify({ error: `tool desconocido: ${tc.name}` }) });
         continue;
       }
       const parsed = tool.inputSchema.safeParse(tc.arguments);
       if (!parsed.success) {
         toolResults.push({ toolCallId: tc.id, name: tc.name, ok: false, error: parsed.error.message });
-        messages.push({ role: "tool", content: JSON.stringify({ error: parsed.error.message }) });
+        messages.push({ role: "tool", toolCallId: tc.id, content: JSON.stringify({ error: parsed.error.message }) });
         continue;
       }
       try {
         const out = await tool.handler(parsed.data, opts.ctx);
         toolResults.push({ toolCallId: tc.id, name: tc.name, ok: true, output: out });
-        messages.push({ role: "tool", content: JSON.stringify(out) });
+        messages.push({ role: "tool", toolCallId: tc.id, content: JSON.stringify(out) });
       } catch (e: any) {
         toolResults.push({ toolCallId: tc.id, name: tc.name, ok: false, error: e.message });
-        messages.push({ role: "tool", content: JSON.stringify({ error: e.message }) });
+        messages.push({ role: "tool", toolCallId: tc.id, content: JSON.stringify({ error: e.message }) });
       }
     }
   }

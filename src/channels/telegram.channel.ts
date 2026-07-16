@@ -1,10 +1,7 @@
 import { Bot } from "grammy";
-import type { ChannelAdapter, NormalizedMessage, SessionRepository } from "../shared/ports/index.js";
+import type { ChannelAdapter, NormalizedMessage, RateLimiter, SessionRepository } from "../shared/ports/index.js";
 
-export interface RateLimiter {
-  allowMessage(chatId: string): boolean;
-  allowQuote(chatId: string): boolean;
-}
+export type { RateLimiter };
 
 export function createRateLimiter(opts: {
   msgsPerMin: number;

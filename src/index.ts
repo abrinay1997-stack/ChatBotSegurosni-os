@@ -43,7 +43,10 @@ async function main() {
   const llm = cfg.llmProvider === "groq"
     ? createGroqProvider({ apiKey: cfg.groqApiKey ?? "" })
     : createGlmProvider({ apiKey: cfg.glmApiKey ?? "" });
-  const cost = createCostGuard({ budgetUsd: cfg.llmDailyBudgetUsd, pricePer1k: { input: 0.17, output: 0.43 } });
+  // Precio real de Groq llama-3.3-70b-versatile: $0.59 / $0.79 por millón de
+  // tokens (input/output) — los valores anteriores (0.17/0.43 por MIL) eran
+  // ~300-500x más caros que el real y disparaban el budget guard casi de inmediato.
+  const cost = createCostGuard({ budgetUsd: cfg.llmDailyBudgetUsd, pricePer1k: { input: 0.00059, output: 0.00079 } });
   const limiter = createRateLimiter({ msgsPerMin: 20, quotesPerHour: 10, globalQuotesPerMin: 5 });
   const { bot, channel, start } = createTelegramChannel({
     token: cfg.telegramBotToken,
@@ -54,7 +57,7 @@ async function main() {
   });
 
   const allTools = [
-    makeCalculateQuoteTool(engine),
+    makeCalculateQuoteTool(engine, limiter),
     makeLookupKnowledgeTool(kb),
     makeGetProductInfoTool(),
     makeEscalateToHumanTool(),
@@ -62,7 +65,7 @@ async function main() {
 
   // Fix #2: registrar el wizard de cotización (grammY conversations).
   bot.use(conversations() as never);
-  bot.use(createConversation(makeQuoteConversation(sm, engine) as never, "quote") as never);
+  bot.use(createConversation(makeQuoteConversation(sm, engine, limiter) as never, "quote") as never);
 
   bot.command("cotizar", async (ctx) => {
     await (ctx as never as { conversation: { enter: (n: string) => Promise<void> } }).conversation.enter("quote");
@@ -71,9 +74,9 @@ async function main() {
   // Fix #3: la lógica vive como middleware de grammY (no en un handleUpdate manual).
   // Polling y webhook ambos corren el pipeline vía bot.handleUpdate().
   bot.on("message:text", async (ctx) => {
-    const chatId = String(ctx.chat.id);
-    const text = ctx.message.text;
-    const updateId = ctx.update.update_id;
+    const normalized = channel.normalizeIn(ctx.update); // aplica allowlist de chats
+    if (!normalized) return;
+    const { chatId, text, updateId } = normalized;
 
     if (!(await sessionRepo.markProcessed(updateId))) return; // idempotencia
     if (!limiter.allowMessage(chatId)) {

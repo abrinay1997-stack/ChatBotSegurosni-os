@@ -1,4 +1,4 @@
-import type { ToolDef, ToolCall, LLMResponse, LLMChatRequest, LLMProvider, LLMUsage } from "./llm-provider.js";
+import type { ToolDef, ToolCall, LLMResponse, LLMChatRequest, LLMProvider, LLMUsage, ChatMessage } from "./llm-provider.js";
 
 export interface Config {
   telegramBotToken: string;
@@ -24,7 +24,7 @@ export interface Logger {
   child(meta: Record<string, unknown>): Logger;
 }
 
-export type { ToolDef, ToolCall, LLMResponse, LLMChatRequest, LLMProvider, LLMUsage };
+export type { ToolDef, ToolCall, LLMResponse, LLMChatRequest, LLMProvider, LLMUsage, ChatMessage };
 
 export interface NormalizedMessage {
   chatId: string;
@@ -76,4 +76,9 @@ export interface KnowledgeRepository {
 export interface VectorStore {
   // Fase 2, solo el puerto
   search(embedding: number[], k: number): Promise<KnowledgeChunk[]>;
+}
+
+export interface RateLimiter {
+  allowMessage(chatId: string): boolean;
+  allowQuote(chatId: string): boolean;
 }

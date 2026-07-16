@@ -32,4 +32,21 @@ describe("router", () => {
     const msgs2 = buildMessages(withQuery, "SYSTEM", [{ id: "1", source: "faq", text: "info" }]);
     expect(msgs2.some((m) => m.content.includes("===CONTEXTO==="))).toBe(true);
   });
+  it("con RAG e historial de varios turnos, mantiene orden cronológico (el turno actual va al final)", () => {
+    const session = {
+      history: [
+        { role: "user", content: "hola" },
+        { role: "assistant", content: "hola, ¿en qué te ayudo?" },
+        { role: "user", content: "pregunta actual" },
+      ],
+      quoteState: {},
+    } as unknown as Session;
+    const msgs = buildMessages(session, "SYSTEM", [{ id: "1", source: "faq", text: "info" }]);
+    const contents = msgs.map((m) => m.content);
+    expect(contents[0]).toBe("SYSTEM");
+    expect(contents[1]).toBe("hola");
+    expect(contents[2]).toBe("hola, ¿en qué te ayudo?");
+    expect(contents[3]).toContain("pregunta actual");
+    expect(contents[3]).toContain("===CONTEXTO===");
+  });
 });
