@@ -7,6 +7,7 @@ export interface DatabaseHandle {
   db: BetterSQLite3Database<typeof schema> & {
     run(sql: string, params: unknown[]): Database.RunResult;
     get(sql: string, params: unknown[]): unknown;
+    all(sql: string, params: unknown[]): unknown[];
   };
   close(): void;
 }
@@ -37,6 +38,9 @@ export function createDatabase(url: string): DatabaseHandle {
   };
   dbWithExt.get = (sql: string, params: unknown[]) => {
     return sqlite.prepare(sql).get(...(params || []));
+  };
+  dbWithExt.all = (sql: string, params: unknown[]) => {
+    return sqlite.prepare(sql).all(...(params || []));
   };
 
   return { db: dbWithExt, close: () => sqlite.close() };
