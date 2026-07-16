@@ -1,3 +1,4 @@
+import "dotenv/config";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { parseConfig } from "./infra/config.js";
