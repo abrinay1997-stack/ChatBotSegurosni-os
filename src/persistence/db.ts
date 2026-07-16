@@ -1,6 +1,8 @@
 import Database from "better-sqlite3";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
+import { mkdirSync } from "node:fs";
+import { dirname } from "node:path";
 import * as schema from "./schema.js";
 
 export interface DatabaseHandle {
@@ -13,6 +15,12 @@ export interface DatabaseHandle {
 }
 
 export function createDatabase(url: string): DatabaseHandle {
+  // better-sqlite3 no crea el directorio del archivo; en una instalación
+  // nueva "./data/" no existe todavía (está en .gitignore) y esto revienta
+  // con "Cannot open database because the directory does not exist".
+  if (url !== ":memory:") {
+    mkdirSync(dirname(url), { recursive: true });
+  }
   const sqlite = new Database(url);
   sqlite.pragma("journal_mode = WAL");
   sqlite.pragma("secure_delete = ON");

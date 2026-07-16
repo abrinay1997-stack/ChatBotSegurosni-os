@@ -1,4 +1,7 @@
 import { describe, it, expect } from "vitest";
+import { mkdtempSync, rmSync, existsSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { createDatabase, type DatabaseHandle } from "../../src/persistence/db.js";
 
 describe("createDatabase", () => {
@@ -28,5 +31,14 @@ describe("createDatabase", () => {
     expect(r1.changes).toBe(1);
     expect(r2.changes).toBe(0);
     h.close();
+  });
+  it("crea el directorio del archivo si no existe (instalación nueva sin data/)", () => {
+    const base = mkdtempSync(join(tmpdir(), "db-"));
+    const nested = join(base, "data", "sub", "chatbot.db");
+    expect(existsSync(join(base, "data"))).toBe(false);
+    const h = createDatabase(nested);
+    expect(existsSync(nested)).toBe(true);
+    h.close();
+    rmSync(base, { recursive: true, force: true });
   });
 });
