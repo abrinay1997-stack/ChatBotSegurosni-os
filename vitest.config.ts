@@ -4,9 +4,9 @@ export default defineConfig({
   test: {
     passWithNoTests: true,
     projects: [
-      { test: { name: "unit", dir: "tests/unit", include: ["**/*.spec.ts"] } },
-      { test: { name: "contract", dir: "tests/contract", include: ["**/*.spec.ts"] } },
-      { test: { name: "e2e", dir: "tests/e2e", include: ["**/*.spec.ts"] } },
+      { test: { name: "unit", dir: "tests/unit", include: ["**/*.spec.ts"], setupFiles: ["./tests/setup.ts"] } },
+      { test: { name: "contract", dir: "tests/contract", include: ["**/*.spec.ts"], setupFiles: ["./tests/setup.ts"] } },
+      { test: { name: "e2e", dir: "tests/e2e", include: ["**/*.spec.ts"], setupFiles: ["./tests/setup.ts"] } },
     ],
     coverage: {
       provider: "v8",

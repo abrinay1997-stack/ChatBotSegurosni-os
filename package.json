@@ -13,12 +13,13 @@
     "test:record": "NOCK_UPDATE=true vitest run tests/contract",
     "dev": "tsx watch src/index.ts",
     "start": "node dist/index.js",
-    "lint:secrets": "gitleaks detect --source . --no-git -v || true"
+    "lint:secrets": "gitleaks detect --source . --no-git -v || true",
+    "db:setup": "tsx scripts/db-setup.ts"
   },
   "dependencies": {
     "@grammyjs/conversations": "^2.1.1",
     "@grammyjs/stateless-question": "^4.0.0",
-    "better-sqlite3": "^12.11.1",
+    "@neondatabase/serverless": "^0.10.4",
     "dotenv": "^17.4.2",
     "drizzle-orm": "^0.45.2",
     "gpt-tokenizer": "^3.4.0",
@@ -29,7 +30,6 @@
     "zod": "^3.23.0"
   },
   "devDependencies": {
-    "@types/better-sqlite3": "^7.6.13",
     "@types/nock": "^10.0.3",
     "@types/node": "^20.0.0",
     "@vitest/coverage-v8": "^4.1.10",

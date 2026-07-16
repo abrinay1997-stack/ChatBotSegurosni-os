@@ -1,44 +1,36 @@
 import { describe, it, expect } from "vitest";
-import { mkdtempSync, rmSync, existsSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { randomUUID } from "node:crypto";
 import { createDatabase, type DatabaseHandle } from "../../src/persistence/db.js";
 
+const TEST_DB_URL = process.env.DATABASE_URL_TEST ?? process.env.DATABASE_URL!;
+
 describe("createDatabase", () => {
-  it("crea tablas y permite insertar sesión", () => {
-    const h: DatabaseHandle = createDatabase(":memory:");
+  it("permite insertar y leer una sesión", async () => {
+    const h: DatabaseHandle = createDatabase(TEST_DB_URL);
+    const chatId = randomUUID();
     const now = Date.now();
-    h.db.run(
-      "INSERT INTO sessions (chat_id, history, quote_state, updated_at) VALUES (?, ?, ?, ?)",
-      ["c1", "[]", "{}", now]
+    await h.db.run(
+      "INSERT INTO sessions (chat_id, history, quote_state, updated_at) VALUES ($1, $2, $3, $4)",
+      [chatId, "[]", "{}", now],
     );
-    const row = h.db.get("SELECT chat_id FROM sessions WHERE chat_id = ?", [
-      "c1",
-    ]) as any;
-    expect(row.chat_id).toBe("c1");
+    const row = (await h.db.get("SELECT chat_id FROM sessions WHERE chat_id = $1", [chatId])) as { chat_id: string };
+    expect(row.chat_id).toBe(chatId);
     h.close();
   });
-  it("processed_updates idempotente con INSERT OR IGNORE", () => {
-    const h: DatabaseHandle = createDatabase(":memory:");
-    const r1 = h.db.run(
-      "INSERT OR IGNORE INTO processed_updates (update_id, processed_at) VALUES (?, ?)",
-      [1, Date.now()]
+
+  it("processed_updates idempotente con ON CONFLICT DO NOTHING", async () => {
+    const h: DatabaseHandle = createDatabase(TEST_DB_URL);
+    const updateId = Math.floor(Math.random() * 1_000_000_000);
+    const r1 = await h.db.run(
+      "INSERT INTO processed_updates (update_id, processed_at) VALUES ($1, $2) ON CONFLICT (update_id) DO NOTHING",
+      [updateId, Date.now()],
     );
-    const r2 = h.db.run(
-      "INSERT OR IGNORE INTO processed_updates (update_id, processed_at) VALUES (?, ?)",
-      [1, Date.now()]
+    const r2 = await h.db.run(
+      "INSERT INTO processed_updates (update_id, processed_at) VALUES ($1, $2) ON CONFLICT (update_id) DO NOTHING",
+      [updateId, Date.now()],
     );
-    expect(r1.changes).toBe(1);
-    expect(r2.changes).toBe(0);
+    expect(r1.rowCount).toBe(1);
+    expect(r2.rowCount).toBe(0);
     h.close();
-  });
-  it("crea el directorio del archivo si no existe (instalación nueva sin data/)", () => {
-    const base = mkdtempSync(join(tmpdir(), "db-"));
-    const nested = join(base, "data", "sub", "chatbot.db");
-    expect(existsSync(join(base, "data"))).toBe(false);
-    const h = createDatabase(nested);
-    expect(existsSync(nested)).toBe(true);
-    h.close();
-    rmSync(base, { recursive: true, force: true });
   });
 });
