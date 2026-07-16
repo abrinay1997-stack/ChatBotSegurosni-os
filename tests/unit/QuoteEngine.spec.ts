@@ -62,4 +62,9 @@ describe("QuoteEngine.calculate", () => {
     const r = motor.calculate({ edadPadre: 25, edadNino: 5, montoCobertura: 1000, plazo: 20 });
     expect(r.breakdown["factorPlazo"]).toBe(1.0);
   });
+
+  it("factorEdad clampea arriba de la última banda", () => {
+    const r = engine.calculate({ edadPadre: 70, edadNino: 5, montoCobertura: 10000, plazo: 10 });
+    expect(r.breakdown["factorEdad"]).toBe(1.4);
+  });
 });

@@ -18,7 +18,8 @@ export function createQuoteEngine(tariffs: Tariffs): QuoteEngine {
   }
   function factorMonto(monto: number): number {
     let f = 1;
-    for (const b of tariffs.factorPorMonto) if (monto >= b.montoMin) f = b.factor;
+    const bandasMontoOrdenadas = [...tariffs.factorPorMonto].sort((a, b) => a.montoMin - b.montoMin);
+    for (const b of bandasMontoOrdenadas) if (monto >= b.montoMin) f = b.factor;
     return f;
   }
   function factorPlazo(plazo: number): number {
