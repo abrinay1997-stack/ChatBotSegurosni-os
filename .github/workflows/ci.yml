@@ -11,3 +11,10 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run lint:secrets
+      - name: Check prompts for secrets
+        run: |
+          if grep -rE "sk-[a-zA-Z0-9]{10}|TELEGRAM_BOT_TOKEN=|GROQ_API_KEY=|GLM_API_KEY=" src/brain/prompts/; then
+            echo "secrets encontrados en prompts"; exit 1
+          else
+            echo "no secrets en prompts"
+          fi
