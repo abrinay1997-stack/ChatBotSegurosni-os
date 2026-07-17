@@ -17,6 +17,7 @@ import {
   makeGetProductInfoTool,
   makeEscalateToHumanTool,
   makeShowPlansTool,
+  makeRecommendPlanTool,
   runToolLoop,
 } from "./brain/tools/index.js";
 import { buildToolsForState, buildMessages } from "./conversation/router.js";
@@ -58,6 +59,7 @@ export async function buildBot(cfg: Config): Promise<BuiltBot> {
     makeGetProductInfoTool(),
     makeEscalateToHumanTool(),
     makeShowPlansTool(kb),
+    makeRecommendPlanTool(),
   ];
 
   async function handleText(chatId: string, text: string, updateId: number) {

@@ -50,3 +50,24 @@ describe("showPlans tool", () => {
     expect((r as any).instruction).toMatch(/cita/i);
   });
 });
+
+describe("recommendPlan tool", () => {
+  it("presupuesto bajo → Plan A", async () => {
+    const { makeRecommendPlanTool } = await import("../../src/brain/tools/recommendPlan.tool.js");
+    const tool = makeRecommendPlanTool();
+    const r = await tool.handler({ edadNino: 12, presupuestoMensual: 10 }, {} as any);
+    expect((r as any).plan).toBe("A");
+  });
+  it("presupuesto alto → Plan C", async () => {
+    const { makeRecommendPlanTool } = await import("../../src/brain/tools/recommendPlan.tool.js");
+    const tool = makeRecommendPlanTool();
+    const r = await tool.handler({ edadNino: 12, presupuestoMensual: 60 }, {} as any);
+    expect((r as any).plan).toBe("C");
+  });
+  it("niño chico sube un escalón el plan recomendado", async () => {
+    const { makeRecommendPlanTool } = await import("../../src/brain/tools/recommendPlan.tool.js");
+    const tool = makeRecommendPlanTool();
+    const r = await tool.handler({ edadNino: 3, presupuestoMensual: 10 }, {} as any);
+    expect((r as any).plan).toBe("B");
+  });
+});
