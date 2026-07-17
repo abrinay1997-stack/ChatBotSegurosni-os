@@ -19,8 +19,15 @@ function getCallback() {
 }
 
 export default async (req: Request, context: Context) => {
-  const cb = await getCallback();
-  return cb(req);
+  try {
+    const cb = await getCallback();
+    return await cb(req);
+  } catch (e) {
+    // DIAGNÓSTICO TEMPORAL: se revierte después de confirmar el deploy.
+    const stack = e instanceof Error ? (e.stack ?? e.message) : String(e);
+    console.error("telegram function error:", stack);
+    return new Response(`error: ${stack}`, { status: 200 });
+  }
 };
 
 export const config: Config = {
