@@ -11,6 +11,7 @@ export type QuoteInput = z.infer<typeof QuoteInputSchema>;
 export const QuoteOutputSchema = z.object({
   primaMensual: z.number().positive(),
   cobertura: z.number().positive(),
+  plan: z.enum(["A", "B", "C"]),
   terms: z.string(),
   breakdown: z.record(z.string(), z.number()),
 });
