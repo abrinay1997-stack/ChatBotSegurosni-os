@@ -4,8 +4,10 @@ Chatbot conversacional de **seguro educacional infantil** (cobertura de educaci�
 
 ## Estado
 
-MVP funcional, en producción en Netlify (webhook) con Postgres (Neon) como
-base de datos. Desarrollo local en modo polling.
+MVP funcional, en producción en Netlify (webhook) con Postgres (Neon).
+Conversación por intención en chat libre (sin wizard de comandos) —
+demo bajo la marca "Juancito Ads" (no oficial de SURA).
+Desarrollo local en modo polling.
 
 ## Documentación
 
