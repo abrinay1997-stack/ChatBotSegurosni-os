@@ -21,8 +21,12 @@ async function main() {
 
     const insert = async (text: string) => {
       const id = `${file}:${title}`;
-      await sql`INSERT INTO knowledge (id, source, text) VALUES (${id}, ${src}, ${text.trim()})
-                 ON CONFLICT (id) DO UPDATE SET text = EXCLUDED.text`;
+      // "source" es lo que el LLM cita textualmente al usuario (ver
+      // lookupKnowledge.tool.ts: "Cita source") — nunca la ruta absoluta
+      // del archivo en el filesystem del servidor, solo el nombre del
+      // documento.
+      await sql`INSERT INTO knowledge (id, source, text) VALUES (${id}, ${file}, ${text.trim()})
+                 ON CONFLICT (id) DO UPDATE SET source = EXCLUDED.source, text = EXCLUDED.text`;
     };
 
     for (const line of content.split("\n")) {
