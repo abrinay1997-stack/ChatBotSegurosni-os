@@ -1,27 +1,40 @@
 import { describe, it, expect } from "vitest";
-import { createDatabase } from "../../src/persistence/db.js";
-import { createFtsKnowledge } from "../../src/domain/knowledge/rag.js";
-import { mkdtempSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { randomUUID } from "node:crypto";
+import { neon } from "@neondatabase/serverless";
+import { createDatabase, type DatabaseHandle } from "../../src/persistence/db.js";
+import { createPgKnowledge } from "../../src/domain/knowledge/rag.js";
 
-describe("FTS knowledge", () => {
+const TEST_DB_URL = process.env.DATABASE_URL_TEST ?? process.env.DATABASE_URL!;
+
+async function insertChunk(id: string, source: string, text: string) {
+  const sql = neon(TEST_DB_URL);
+  await sql`INSERT INTO knowledge (id, source, text) VALUES (${id}, ${source}, ${text})
+             ON CONFLICT (id) DO UPDATE SET text = EXCLUDED.text`;
+}
+
+async function deleteChunk(id: string) {
+  const sql = neon(TEST_DB_URL);
+  await sql`DELETE FROM knowledge WHERE id = ${id}`;
+}
+
+describe("PG knowledge (full-text search)", () => {
   it("recupera chunks por query", async () => {
-    const dir = mkdtempSync(join(tmpdir(), "kb-"));
-    writeFileSync(join(dir, "faq.md"), "# ¿Cómo cotizo?\nResponde quiero cotizar y el bot te guía.\n");
-    const h = createDatabase(":memory:");
-    const kb = createFtsKnowledge(h, dir);
-    const chunks = await kb.retrieve("cotizar", 3);
-    expect(chunks.length).toBeGreaterThan(0);
-    expect(chunks[0].text).toMatch(/cotizar/i);
+    const id = randomUUID();
+    await insertChunk(id, "test.md", "Para cotizar escribí quiero cotizar y el bot te guía.");
+    try {
+      const h: DatabaseHandle = createDatabase(TEST_DB_URL);
+      const kb = createPgKnowledge(h);
+      const chunks = await kb.retrieve("cotizar", 3);
+      expect(chunks.some((c) => c.id === id)).toBe(true);
+    } finally {
+      await deleteChunk(id);
+    }
   });
 
-  it("no revienta con texto que rompe la sintaxis MATCH de FTS5 (guiones, comillas, paréntesis, dos puntos)", async () => {
-    const dir = mkdtempSync(join(tmpdir(), "kb-"));
-    writeFileSync(join(dir, "faq.md"), "# Cobertura\nCobertura de 10 a 20 años, edad: 25.\n");
-    const h = createDatabase(":memory:");
-    const kb = createFtsKnowledge(h, dir);
-    for (const q of ['10-20 años', 'edad: 25', 'cobertura (niño)', '¿me ayudás con un "seguro"?', '   ', '!!!']) {
+  it("no revienta con texto libre (guiones, comillas, paréntesis, dos puntos)", async () => {
+    const h: DatabaseHandle = createDatabase(TEST_DB_URL);
+    const kb = createPgKnowledge(h);
+    for (const q of ["10-20 años", "edad: 25", "cobertura (niño)", '¿me ayudás con un "seguro"?', "   ", "!!!"]) {
       const chunks = await kb.retrieve(q, 3);
       expect(Array.isArray(chunks)).toBe(true);
     }

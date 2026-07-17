@@ -30,3 +30,44 @@
 **Contexto:** `fallec[ií]o` no matchea "falleció" (termina en `ó`).
 **Fix:** `fallec[ií][oó]` (commit `b1c183c`).
 **Prevención:** testear casos con acentos reales del español.
+
+## [2026-07-17] `npm install` sin pin resolvió una versión vieja de `@neondatabase/serverless`
+
+**Contexto:** migración de SQLite a Neon (Postgres). El plan especificaba `sql.query(text, params)` como API para queries parametrizadas crudas.
+**Error:** `npm install @neondatabase/serverless` (sin versión) resolvió `^0.10.4`, una versión que no tiene el método `.query()`. El implementador lo detectó y lo esquivó con `(sql as any)(text, params)`, ocultando el problema real en vez de resolverlo.
+**Causa raíz:** no pinear versión al instalar; el paquete tenía releases más nuevas (`1.1.0`) con la API documentada.
+**Fix:** bump a `^1.1.0`, uso de `sql.query()` sin casts (commit `7ed5bc7`).
+**Prevención:** cuando el plan asume una API específica de una librería, verificar contra la versión real instalada antes de escribir código alrededor — un cast `as any` que "hace que compile" suele estar tapando una versión equivocada, no un problema real de tipos.
+
+## [2026-07-17] Netlify Functions v2: `process.env` no está poblado, hay que usar `Netlify.env`
+
+**Contexto:** deploy a Netlify Functions (webhook de Telegram + health check).
+**Error:** `/health` devolvía `db-down` en producción. `parseConfig(process.env)` no encontraba `DATABASE_URL`, caía al default SQLite (`./data/chatbot.db`), y `neon()` lo rechazaba como URL inválida.
+**Causa raíz:** en el runtime de Netlify Functions v2, las variables de entorno del sitio NO se inyectan en `process.env` — solo están disponibles vía el global `Netlify.env.get()/.toObject()`. La documentación oficial de Netlify (vía su MCP) ya lo advertía ("ONLY use `Netlify.env.*`") pero se pasó por alto al escribir el código inicial.
+**Fix:** `parseConfig(Netlify.env.toObject())` en `netlify/functions/*.mts`, en vez de `process.env` (commit `e71cf39`). `src/index.ts` (polling local) sigue usando `process.env` normal, ahí sí lo puebla `dotenv/config`.
+**Prevención:** cuando una plataforma serverless tiene guías propias sobre cómo leer configuración/env vars, seguirlas literalmente — `process.env` "funciona en todos lados" es una asunción que no vale para todos los runtimes serverless.
+
+## [2026-07-17] Netlify Functions (MCP `manage-env-vars`): pasar `newVarContext`/`newVarScopes` explícitos rompe el guardado en silencio
+
+**Contexto:** configuración de las 9 env vars de producción del sitio de Netlify vía la herramienta MCP.
+**Error:** cada llamada a `manage-env-vars` con `upsertEnvVar: true` devolvía `"Environment variable upserted"` (éxito), pero `getAllEnvVars` mostraba la lista vacía — ninguna variable llegaba realmente al runtime de la función (confirmado con un `env_keys` de diagnóstico en `/health`).
+**Causa raíz:** pasar `newVarContext: "all"` / `newVarScopes: ["all"]` (o `["functions","runtime"]`) explícitamente hacía que el guardado fallara silenciosamente pese al mensaje de éxito. Sin esos parámetros (dejando los defaults de la herramienta), el guardado funcionó correctamente.
+**Fix:** omitir `newVarContext`/`newVarScopes` en las llamadas a `manage-env-vars` (solo `siteId`, `upsertEnvVar`, `envVarKey`, `envVarValue`).
+**Segundo hallazgo relacionado:** las variables con `envVarIsSecret: true` tampoco llegaban al runtime (ni la key aparecía en `Netlify.env.toObject()`), pese al mismo "éxito" reportado. Se resolvió seteándolas sin ese flag — siguen siendo privadas del sitio, el flag "secret" es una capa extra de Netlify (redacción en logs/UI) que no era necesaria acá.
+**Prevención:** con esta herramienta MCP en particular, no confiar en el mensaje de "upserted" — verificar siempre con `getAllEnvVars` (o un endpoint de diagnóstico) después de escribir. No pasar `newVarContext`/`newVarScopes`/`envVarIsSecret` a menos que se confirme primero que sí persisten con esos parámetros.
+
+## [2026-07-17] Serverless: un `.md` leído con `readFileSync` en runtime no se empaqueta
+
+**Contexto:** el prompt de sistema del bot vivía en `src/brain/prompts/v1.system.md`, cargado con `readFileSync` relativo a `import.meta.url` — funcionaba en polling local y en el build de Docker (con un script `copy-prompts.mjs` que copiaba el `.md` a `dist/`).
+**Error:** en producción (Netlify Functions), cada mensaje devolvía 502; los logs mostraban `ENOENT: no such file or directory, open '/var/task/netlify/functions/prompts/v1.system.md'`.
+**Causa raíz:** el bundler de Netlify Functions (esbuild) solo sigue imports de código (`.ts`/`.js`) para armar el bundle de la función — no copia archivos no-JS referenciados solo vía `readFileSync` en runtime, aunque el build de `tsc`/Docker sí los tenía (por el script de copia manual).
+**Fix:** el prompt pasa a ser una constante exportada desde un módulo `.ts` (`src/brain/prompts/v1.system.ts`) en vez de un archivo `.md` leído en runtime (commit `b359418`). Se elimina `scripts/copy-prompts.mjs`, ya innecesario.
+**Prevención:** cualquier asset no-JS que el código lea con `fs` en runtime (prompts, plantillas, datos estáticos) es un riesgo de portabilidad entre bundlers/runtimes distintos (tsc vs esbuild vs Docker). Si el proyecto puede terminar en más de un target de deploy, preferir constantes de código sobre lectura de archivo en runtime, o configurar explícitamente el bundling de esos assets (`included_files` de Netlify, `esbuild.loader`, etc.) y probarlo en el runtime real antes de darlo por hecho.
+
+## [2026-07-17] `@grammyjs/conversations`: efectos secundarios sin `conversation.external()` se ejecutan una vez por mensaje, no una vez por conversación
+
+**Contexto:** el wizard `/cotizar` (`quote.ts`) llama a `limiter.allowQuote(chatId)` (rate limiter en memoria) y `sm.setConsent(chatId)` (escritura a Postgres) como código plano dentro de la función de la conversación.
+**Error:** en producción (serverless, sin proceso persistente), el wizard se cortaba en silencio después de la 2da o 3ra pregunta, sin ninguna excepción en los logs. Reproducido de forma determinística contra la base de datos: `bot_conversations` pasaba a 0 filas antes de llegar a "Monto de cobertura".
+**Causa raíz:** el motor de `@grammyjs/conversations` reejecuta la función de la conversación **completa desde el inicio** en cada mensaje nuevo, usando checkpoints cacheados para saltarse los `ctx.reply()`/`conversation.waitFor()` ya resueltos (así reconstruye en qué pregunta iba sin volver a mandar mensajes duplicados). Pero cualquier código plano que NO pase por esos métodos especiales del motor —como una llamada a un objeto propio (`limiter.allowQuote`, una escritura a DB)— se re-ejecuta de verdad en cada replay. Con `globalQuotesPerMin: 5` configurado, un solo wizard de 5 pasos agotaba el límite global él solo, y la rama `if (!allowed) return` cortaba la conversación sin dejar rastro de error.
+**Fix:** envolver ambas llamadas en `conversation.external(() => ...)`, que el motor garantiza ejecutar una sola vez y cachear el resultado para replays futuros (commit `6a23bfb`).
+**Prevención:** dentro de una función de conversación de `@grammyjs/conversations`, cualquier código que no sea puro/determinístico (I/O, `Date.now()`, `Math.random()`, llamadas a objetos con estado propio) tiene que pasar por `conversation.external()` (o los helpers `conversation.now()`/`.random()`/`.log()` para esos casos comunes) — nunca ejecutarse como código plano entre `waitFor`s. Esto no se manifiesta en polling local con un solo proceso de larga duración (ahí "replay" y "primera ejecución" coinciden lo suficientemente seguido como para no notarse), pero sí en cualquier entorno donde el proceso se reinicia o distribuye entre mensajes.

@@ -1,55 +1,37 @@
-import Database from "better-sqlite3";
-import { drizzle } from "drizzle-orm/better-sqlite3";
-import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
-import { mkdirSync } from "node:fs";
-import { dirname } from "node:path";
+import { neon } from "@neondatabase/serverless";
+import { drizzle } from "drizzle-orm/neon-http";
+import type { NeonHttpDatabase } from "drizzle-orm/neon-http";
 import * as schema from "./schema.js";
 
 export interface DatabaseHandle {
-  db: BetterSQLite3Database<typeof schema> & {
-    run(sql: string, params: unknown[]): Database.RunResult;
-    get(sql: string, params: unknown[]): unknown;
-    all(sql: string, params: unknown[]): unknown[];
+  db: NeonHttpDatabase<typeof schema> & {
+    run(sql: string, params?: unknown[]): Promise<{ rowCount: number }>;
+    get(sql: string, params?: unknown[]): Promise<unknown>;
+    all(sql: string, params?: unknown[]): Promise<unknown[]>;
   };
   close(): void;
 }
 
 export function createDatabase(url: string): DatabaseHandle {
-  // better-sqlite3 no crea el directorio del archivo; en una instalación
-  // nueva "./data/" no existe todavía (está en .gitignore) y esto revienta
-  // con "Cannot open database because the directory does not exist".
-  if (url !== ":memory:") {
-    mkdirSync(dirname(url), { recursive: true });
-  }
-  const sqlite = new Database(url);
-  sqlite.pragma("journal_mode = WAL");
-  sqlite.pragma("secure_delete = ON");
-  const db = drizzle(sqlite, { schema });
-  sqlite.exec(`
-    CREATE TABLE IF NOT EXISTS sessions (
-      chat_id TEXT PRIMARY KEY, history TEXT, quote_state TEXT,
-      consent_parent_at INTEGER, updated_at INTEGER
-    );
-    CREATE TABLE IF NOT EXISTS processed_updates (update_id INTEGER PRIMARY KEY, processed_at INTEGER);
-    CREATE TABLE IF NOT EXISTS leads (
-      id INTEGER PRIMARY KEY AUTOINCREMENT, chat_id TEXT NOT NULL, quote TEXT NOT NULL,
-      consent_parent_at INTEGER, pii_consent_at INTEGER, retention_days INTEGER NOT NULL DEFAULT 90,
-      created_at INTEGER NOT NULL
-    );
-    CREATE TABLE IF NOT EXISTS prompt_versions (version TEXT PRIMARY KEY, hash TEXT NOT NULL, content TEXT NOT NULL, created_at INTEGER NOT NULL);
-  `);
+  const sql = neon(url, { fullResults: true });
+  const base = drizzle(sql, { schema });
+  const db = base as unknown as DatabaseHandle["db"];
 
-  // Expose sqlite client for raw SQL operations
-  const dbWithExt = db as any;
-  dbWithExt.run = (sql: string, params: unknown[]) => {
-    return sqlite.prepare(sql).run(...(params || []));
+  db.run = async (text: string, params: unknown[] = []) => {
+    const result = await sql.query(text, params);
+    return { rowCount: (result as { rowCount: number | null }).rowCount ?? 0 };
   };
-  dbWithExt.get = (sql: string, params: unknown[]) => {
-    return sqlite.prepare(sql).get(...(params || []));
+  db.get = async (text: string, params: unknown[] = []) => {
+    const result = await sql.query(text, params);
+    return (result as { rows: unknown[] }).rows[0];
   };
-  dbWithExt.all = (sql: string, params: unknown[]) => {
-    return sqlite.prepare(sql).all(...(params || []));
+  db.all = async (text: string, params: unknown[] = []) => {
+    const result = await sql.query(text, params);
+    return (result as { rows: unknown[] }).rows;
   };
 
-  return { db: dbWithExt, close: () => sqlite.close() };
+  // El driver HTTP de Neon no mantiene una conexión persistente que cerrar;
+  // cada query es un request HTTP independiente. close() es un no-op que
+  // preserva la interfaz que usan index.ts y los tests.
+  return { db, close: () => {} };
 }

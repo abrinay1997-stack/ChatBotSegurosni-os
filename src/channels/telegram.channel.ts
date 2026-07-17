@@ -36,12 +36,10 @@ export function createRateLimiter(opts: {
 export interface TelegramChannel {
   bot: Bot;
   channel: ChannelAdapter;
-  start(mode: "polling" | "webhook", url?: string): void;
 }
 
 export function createTelegramChannel(opts: {
   token: string;
-  secret?: string;
   allowlist: string[];
   repo: SessionRepository;
   limiter: RateLimiter;
@@ -59,15 +57,5 @@ export function createTelegramChannel(opts: {
       await bot.api.sendMessage(chatId, text);
     },
   };
-  return {
-    bot,
-    channel,
-    start(mode, url) {
-      if (mode === "polling") {
-        bot.start();
-        return;
-      }
-      if (url) bot.api.setWebhook(url, { secret_token: opts.secret });
-    },
-  };
+  return { bot, channel };
 }

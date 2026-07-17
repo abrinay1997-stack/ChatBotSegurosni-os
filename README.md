@@ -3,11 +3,20 @@
 Chatbot conversacional de **seguro educacional infantil** (cobertura de educación de los hijos si los padres fallecen).
 
 ## Estado
-Diseño + plan de implementación listos. Desarrollo del MVP en curso.
+
+MVP funcional, en producción en Netlify (webhook) con Postgres (Neon) como
+base de datos. Desarrollo local en modo polling.
 
 ## Documentación
-- Spec de diseño: [`docs/superpowers/specs/2026-07-15-chatbot-seguros-design.md`](docs/superpowers/specs/2026-07-15-chatbot-seguros-design.md)
-- Plan de implementación (23 tareas TDD): [`docs/superpowers/plans/2026-07-15-chatbot-seguros-mvp.md`](docs/superpowers/plans/2026-07-15-chatbot-seguros-mvp.md)
 
-## Stack (planeado)
-Node 20 + TypeScript + grammY + Groq/GLM + Drizzle (SQLite→Postgres) + Zod + vitest + pino.
+- Spec de diseño original: [`docs/superpowers/specs/2026-07-15-chatbot-seguros-design.md`](docs/superpowers/specs/2026-07-15-chatbot-seguros-design.md)
+- Plan de implementación del MVP (23 tareas TDD): [`docs/superpowers/plans/2026-07-15-chatbot-seguros-mvp.md`](docs/superpowers/plans/2026-07-15-chatbot-seguros-mvp.md)
+- Spec de la migración a Netlify + Neon: [`docs/superpowers/specs/2026-07-16-netlify-neon-migration-design.md`](docs/superpowers/specs/2026-07-16-netlify-neon-migration-design.md)
+- Plan de la migración a Netlify + Neon: [`docs/superpowers/plans/2026-07-16-netlify-neon-migration.md`](docs/superpowers/plans/2026-07-16-netlify-neon-migration.md)
+- Instalación y deploy: [`INSTALL.md`](INSTALL.md)
+- Bugs encontrados y su causa raíz: [`docs/errors-learned.md`](docs/errors-learned.md)
+
+## Stack
+
+Node 20 + TypeScript + grammY + Groq/GLM + Neon (Postgres) vía Drizzle + Zod + vitest + pino.
+Producción: Netlify Functions v2 (webhook). Desarrollo local: polling, sin webhook.
