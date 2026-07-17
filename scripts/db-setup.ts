@@ -38,11 +38,6 @@ async function main() {
     text TEXT NOT NULL
   )`;
   await sql`CREATE INDEX IF NOT EXISTS knowledge_search_idx ON knowledge USING GIN (to_tsvector('spanish', text))`;
-  await sql`CREATE TABLE IF NOT EXISTS bot_conversations (
-    key TEXT PRIMARY KEY,
-    state TEXT NOT NULL,
-    updated_at BIGINT NOT NULL
-  )`;
 
   console.log("Tablas creadas/verificadas en", url.replace(/:[^:@]+@/, ":***@"));
 }

@@ -1,5 +1,4 @@
 import { Bot } from "grammy";
-import { conversations, createConversation } from "@grammyjs/conversations";
 import type { Config } from "./shared/ports/index.js";
 import { createLogger, withConversation } from "./infra/logger.js";
 import { createDatabase, type DatabaseHandle } from "./persistence/db.js";
@@ -20,8 +19,6 @@ import {
   runToolLoop,
 } from "./brain/tools/index.js";
 import { buildToolsForState, buildMessages } from "./conversation/router.js";
-import { makeQuoteConversation } from "./conversation/conversations/quote.js";
-import { createPgConversationStorage } from "./conversation/conversation.storage.js";
 import { scrubPII } from "./brain/guardrails/input.js";
 import { checkOutput } from "./brain/guardrails/output.js";
 import { detectDistress } from "./brain/guardrails/distress.js";
@@ -61,18 +58,7 @@ export async function buildBot(cfg: Config): Promise<BuiltBot> {
     makeEscalateToHumanTool(),
   ];
 
-  bot.use(conversations({ storage: createPgConversationStorage(db) as never }) as never);
-  bot.use(createConversation(makeQuoteConversation(sm, engine, limiter) as never, "quote") as never);
-
-  bot.command("cotizar", async (ctx) => {
-    await (ctx as never as { conversation: { enter: (n: string) => Promise<void> } }).conversation.enter("quote");
-  });
-
-  bot.on("message:text", async (ctx) => {
-    const normalized = channel.normalizeIn(ctx.update);
-    if (!normalized) return;
-    const { chatId, text, updateId } = normalized;
-
+  async function handleText(chatId: string, text: string, updateId: number) {
     if (!(await sessionRepo.markProcessed(updateId))) return;
     if (!limiter.allowMessage(chatId)) {
       await channel.send(chatId, "Demasiados mensajes, espera un momento.");
@@ -112,6 +98,23 @@ export async function buildBot(cfg: Config): Promise<BuiltBot> {
       await sm.appendTurn(chatId, "assistant", reply);
       await channel.send(chatId, reply);
     });
+  }
+
+  // /cotizar deja de ser un flujo aparte: inyecta el mismo texto que
+  // escribiría un cliente en cualquier canal (incluido WhatsApp, donde no
+  // hay comandos), y sigue exactamente el mismo camino que un mensaje
+  // normal — respeta el allowlist vía channel.normalizeIn, igual que
+  // cualquier otro update.
+  bot.command("cotizar", async (ctx) => {
+    const normalized = channel.normalizeIn(ctx.update);
+    if (!normalized) return;
+    await handleText(normalized.chatId, "Quiero cotizar un seguro.", normalized.updateId);
+  });
+
+  bot.on("message:text", async (ctx) => {
+    const normalized = channel.normalizeIn(ctx.update);
+    if (!normalized) return;
+    await handleText(normalized.chatId, normalized.text, normalized.updateId);
   });
 
   logger.info("bot compuesto", { provider: cfg.llmProvider, env: cfg.nodeEnv });
