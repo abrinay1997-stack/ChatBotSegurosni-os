@@ -16,6 +16,7 @@ import {
   makeLookupKnowledgeTool,
   makeGetProductInfoTool,
   makeEscalateToHumanTool,
+  makeShowPlansTool,
   runToolLoop,
 } from "./brain/tools/index.js";
 import { buildToolsForState, buildMessages } from "./conversation/router.js";
@@ -56,6 +57,7 @@ export async function buildBot(cfg: Config): Promise<BuiltBot> {
     makeLookupKnowledgeTool(kb),
     makeGetProductInfoTool(),
     makeEscalateToHumanTool(),
+    makeShowPlansTool(kb),
   ];
 
   async function handleText(chatId: string, text: string, updateId: number) {

@@ -39,3 +39,14 @@ describe("calculateQuote tool", () => {
     ).rejects.toThrow(/límite/i);
   });
 });
+
+describe("showPlans tool", () => {
+  it("devuelve chunks de la base de conocimiento con instrucción de citar fuente", async () => {
+    const repo = { retrieve: async (_q: string, _k: number) => [{ id: "1", source: "plans.md", text: "Plan A: básico" }] };
+    const { makeShowPlansTool } = await import("../../src/brain/tools/showPlans.tool.js");
+    const tool = makeShowPlansTool(repo as any);
+    const r = await tool.handler({}, {} as any);
+    expect((r as any).chunks).toHaveLength(1);
+    expect((r as any).instruction).toMatch(/cita/i);
+  });
+});
