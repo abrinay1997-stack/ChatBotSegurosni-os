@@ -8,8 +8,9 @@ export default async (req: Request, context: Context) => {
     const db = createDatabase(cfg.databaseUrl);
     await db.db.get("SELECT 1", []);
     return new Response("ok", { status: 200 });
-  } catch {
-    return new Response("db-down", { status: 500 });
+  } catch (e) {
+    // DIAGNÓSTICO TEMPORAL: se revierte después de confirmar el deploy.
+    return new Response(`db-down: ${e instanceof Error ? e.message : String(e)} | DATABASE_URL_present=${!!process.env.DATABASE_URL}`, { status: 500 });
   }
 };
 
