@@ -9,7 +9,14 @@ import type { RateLimiter } from "../../shared/ports/index.js";
 export function makeQuoteConversation(sm: SessionManager, engine: QuoteEngine, limiter?: RateLimiter) {
   return async function quoteConversation(conversation: Conversation<Context>, ctx: Context) {
     const chatId = String(ctx.chat!.id);
-    if (limiter && !limiter.allowQuote(chatId)) {
+    // grammY reejecuta esta función completa desde el inicio en cada mensaje
+    // del wizard (así reconstruye en qué waitFor estaba, sin volver a mandar
+    // los mensajes ya enviados). limiter.allowQuote() muta estado propio y NO
+    // es un ctx.reply/waitFor de grammY, así que sin external() se llamaría
+    // una vez por cada replay (una vez por pregunta) en lugar de una sola vez
+    // por cotización real.
+    const allowed = limiter ? await conversation.external(() => limiter.allowQuote(chatId)) : true;
+    if (!allowed) {
       await ctx.reply("Límite de cotizaciones alcanzado. Esperá un momento o pedí que te derive a un asesor.");
       return;
     }
@@ -19,7 +26,10 @@ export function makeQuoteConversation(sm: SessionManager, engine: QuoteEngine, l
       await ctx.reply("Sin problema, no cotizo. Puedo ayudarte con otras dudas.");
       return;
     }
-    await sm.setConsent(chatId);
+    // Mismo motivo que allowQuote arriba: sin external(), esta escritura a
+    // la base se repetiría en cada pregunta restante del wizard, no solo una
+    // vez al dar el consentimiento.
+    await conversation.external(() => sm.setConsent(chatId));
 
     await ctx.reply("Edad del padre/tutor (18-70)?", {
       reply_markup: { keyboard: [[{ text: "18-30" }, { text: "31-40" }], [{ text: "41-50" }, { text: "51-70" }]] },
