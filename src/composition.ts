@@ -49,7 +49,6 @@ export async function buildBot(cfg: Config): Promise<BuiltBot> {
   const limiter = createRateLimiter({ msgsPerMin: 20, quotesPerHour: 10, globalQuotesPerMin: 5 });
   const { bot, channel } = createTelegramChannel({
     token: cfg.telegramBotToken,
-    secret: cfg.telegramWebhookSecret,
     allowlist: cfg.telegramAllowlist,
     repo: sessionRepo,
     limiter,

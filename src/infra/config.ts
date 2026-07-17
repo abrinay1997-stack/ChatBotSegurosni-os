@@ -8,7 +8,7 @@ const Schema = z.object({
   LLM_PROVIDER: z.enum(["groq", "glm"]).default("groq"),
   GROQ_API_KEY: z.string().optional(),
   GLM_API_KEY: z.string().optional(),
-  DATABASE_URL: z.string().default("./data/chatbot.db"),
+  DATABASE_URL: z.string().min(1, "DATABASE_URL es requerida (connection string de Postgres/Neon)"),
   LLM_DAILY_BUDGET_USD: z.coerce.number().default(5),
   LLM_PROVIDER_RESIDENT_ONLY: z.coerce.boolean().default(false),
   PROMPT_VERSION: z.string().default("v1"),
