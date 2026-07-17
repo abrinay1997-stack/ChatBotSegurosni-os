@@ -19,7 +19,7 @@
   "dependencies": {
     "@grammyjs/conversations": "^2.1.1",
     "@grammyjs/stateless-question": "^4.0.0",
-    "@neondatabase/serverless": "^0.10.4",
+    "@neondatabase/serverless": "^1.1.0",
     "dotenv": "^17.4.2",
     "drizzle-orm": "^0.45.2",
     "gpt-tokenizer": "^3.4.0",

@@ -18,15 +18,15 @@ export function createDatabase(url: string): DatabaseHandle {
   const db = base as unknown as DatabaseHandle["db"];
 
   db.run = async (text: string, params: unknown[] = []) => {
-    const result = await (sql as any)(text, params);
+    const result = await sql.query(text, params);
     return { rowCount: (result as { rowCount: number | null }).rowCount ?? 0 };
   };
   db.get = async (text: string, params: unknown[] = []) => {
-    const result = await (sql as any)(text, params);
+    const result = await sql.query(text, params);
     return (result as { rows: unknown[] }).rows[0];
   };
   db.all = async (text: string, params: unknown[] = []) => {
-    const result = await (sql as any)(text, params);
+    const result = await sql.query(text, params);
     return (result as { rows: unknown[] }).rows;
   };
 
