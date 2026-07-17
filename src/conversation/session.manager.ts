@@ -12,7 +12,7 @@ export function createSessionManager(repo: SessionRepository, opts: { maxContext
   const tokens = (s: string) => encode(s).length;
 
   // Poda el history si excede 0.7 del contexto, manteniendo los últimos 4 turnos.
-  // NUNCA toca quoteState (el wizard no pierde estado al podar).
+  // NUNCA toca quoteState (el flujo de cotización no pierde estado al podar).
   function prune(s: Session): Session {
     const total = s.history.reduce((a, m) => a + tokens(m.content), 0);
     if (total <= opts.maxContextTokens * 0.7) return s;

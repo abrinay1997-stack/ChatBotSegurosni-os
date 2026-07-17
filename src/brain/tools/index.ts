@@ -3,5 +3,7 @@ export { makeCalculateQuoteTool } from "./calculateQuote.tool.js";
 export { makeLookupKnowledgeTool } from "./lookupKnowledge.tool.js";
 export { makeGetProductInfoTool, PRODUCT_INFO } from "./getProductInfo.tool.js";
 export { makeEscalateToHumanTool } from "./escalateToHuman.tool.js";
+export { makeShowPlansTool } from "./showPlans.tool.js";
+export { makeRecommendPlanTool, planPorPresupuesto } from "./recommendPlan.tool.js";
 export { defineTool, runToolLoop, toolToJsonSchema } from "./registry.js";
 export type { Tool, ToolCtx, ToolResult, ToolLoopResult, JSONSchema } from "./registry.js";

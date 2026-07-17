@@ -30,6 +30,13 @@ export function createQuoteEngine(tariffs: Tariffs): QuoteEngine {
     const ceil = keys.find((k) => k >= plazo) ?? keys[keys.length - 1];
     return tariffs.factorPorPlazo[String(ceil)];
   }
+  // Mismos cortes que factorPorMonto en tariffs.example.json (1000/50000/100000)
+  // — no son rangos nuevos, son los que ya existen para el cálculo de la prima.
+  function planPorMonto(monto: number): "A" | "B" | "C" {
+    if (monto >= 100000) return "C";
+    if (monto >= 50000) return "B";
+    return "A";
+  }
 
   return {
     calculate(input): QuoteOutput {
@@ -40,6 +47,7 @@ export function createQuoteEngine(tariffs: Tariffs): QuoteEngine {
       return {
         primaMensual: Math.round(primaMensual * 100) / 100,
         cobertura: input.montoCobertura,
+        plan: planPorMonto(input.montoCobertura),
         terms: "Cotización con DATOS DE EJEMPLO. Los costos y términos reales se cargarán al ir a producción.",
         breakdown: { tasaBase: tariffs.tasaBaseMensual, factorEdad: fEdad, factorPlazo: fPlazo, factorMonto: fMonto },
       };

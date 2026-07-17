@@ -35,9 +35,3 @@ export const knowledge = pgTable("knowledge", {
   source: text("source").notNull(),
   text: text("text").notNull(),
 });
-
-export const botConversations = pgTable("bot_conversations", {
-  key: text("key").primaryKey(),
-  state: text("state").notNull(),
-  updatedAt: bigint("updated_at", { mode: "number" }).notNull(),
-});
