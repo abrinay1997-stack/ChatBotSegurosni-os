@@ -239,6 +239,7 @@ git commit -m "refactor: elimina el wizard rígido de /cotizar (reemplazado por 
 - Delete: `tests/e2e/redteam.spec.ts`
 - Modify: `tests/unit/router.spec.ts`
 - Modify: `tests/e2e/flows.spec.ts`
+- Modify: `src/composition.ts` (conecta el registro silencioso de `setConsent`, ver Paso 5 — sin esto, `SessionManager.setConsent` queda sin ningún caller tras la Tarea 1)
 
 **Interfaces:**
 - Consumes: `Session`, `Tool[]` (sin cambios de forma).
@@ -374,7 +375,42 @@ describe("e2e: sesión + cotización", () => {
 });
 ```
 
-- [ ] **Paso 5: Typecheck y tests**
+- [ ] **Paso 5: Conectar el registro silencioso de `setConsent` en `src/composition.ts`**
+
+Este paso faltaba en la versión original de este plan — se documentó la
+decisión de negocio (mantener `setConsent` como registro interno) en el
+spec, pero ningún paso conectaba la llamada real. Sin este paso,
+`SessionManager.setConsent` queda sin ningún caller en todo el código
+(la Tarea 1 borró el único lugar que lo llamaba, el wizard).
+
+En `src/composition.ts`, dentro de `handleText`, justo después de
+`const session = await sm.load(chatId);` y su chequeo `if (!session) return;`,
+agregar (antes de armar `messages`/`tools`):
+
+```typescript
+      // Registro interno y silencioso de cuándo arrancó el tratamiento de
+      // datos de esta conversación — no se pide ni se muestra al cliente
+      // (decisión de negocio documentada en el spec de este ciclo).
+      if (session.consentParentAt == null) {
+        await sm.setConsent(chatId);
+      }
+```
+
+El bloque completo de `handleText` a partir de `const session = await sm.load(chatId);` queda así:
+
+```typescript
+      const session = await sm.load(chatId);
+      if (!session) return;
+      if (session.consentParentAt == null) {
+        await sm.setConsent(chatId);
+      }
+      const { system } = pm.get();
+      const rag = await kb.retrieve(text, 3);
+      const messages = buildMessages(session, system, rag);
+      const tools = buildToolsForState(session, allTools);
+```
+
+- [ ] **Paso 6: Typecheck y tests**
 
 ```bash
 npm run typecheck
@@ -383,7 +419,7 @@ npm test
 
 Expected: `0 errores`, todos los tests pasan.
 
-- [ ] **Paso 6: Commit**
+- [ ] **Paso 7: Commit**
 
 ```bash
 git add -A
