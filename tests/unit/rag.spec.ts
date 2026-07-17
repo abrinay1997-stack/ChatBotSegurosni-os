@@ -12,14 +12,23 @@ async function insertChunk(id: string, source: string, text: string) {
              ON CONFLICT (id) DO UPDATE SET text = EXCLUDED.text`;
 }
 
+async function deleteChunk(id: string) {
+  const sql = neon(TEST_DB_URL);
+  await sql`DELETE FROM knowledge WHERE id = ${id}`;
+}
+
 describe("PG knowledge (full-text search)", () => {
   it("recupera chunks por query", async () => {
     const id = randomUUID();
     await insertChunk(id, "test.md", "Para cotizar escribí quiero cotizar y el bot te guía.");
-    const h: DatabaseHandle = createDatabase(TEST_DB_URL);
-    const kb = createPgKnowledge(h);
-    const chunks = await kb.retrieve("cotizar", 3);
-    expect(chunks.some((c) => c.id === id)).toBe(true);
+    try {
+      const h: DatabaseHandle = createDatabase(TEST_DB_URL);
+      const kb = createPgKnowledge(h);
+      const chunks = await kb.retrieve("cotizar", 3);
+      expect(chunks.some((c) => c.id === id)).toBe(true);
+    } finally {
+      await deleteChunk(id);
+    }
   });
 
   it("no revienta con texto libre (guiones, comillas, paréntesis, dos puntos)", async () => {
