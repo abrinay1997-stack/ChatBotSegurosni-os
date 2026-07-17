@@ -14,7 +14,8 @@
     "dev": "tsx watch src/index.ts",
     "start": "node dist/index.js",
     "lint:secrets": "gitleaks detect --source . --no-git -v || true",
-    "db:setup": "tsx scripts/db-setup.ts"
+    "db:setup": "tsx scripts/db-setup.ts",
+    "db:seed": "tsx scripts/seed-knowledge.ts"
   },
   "dependencies": {
     "@grammyjs/conversations": "^2.1.1",
