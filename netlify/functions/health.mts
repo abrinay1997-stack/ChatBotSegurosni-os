@@ -10,8 +10,10 @@ export default async (req: Request, context: Context) => {
     const db = createDatabase(cfg.databaseUrl);
     await db.db.get("SELECT 1", []);
     return new Response("ok", { status: 200 });
-  } catch {
-    return new Response("db-down", { status: 500 });
+  } catch (e) {
+    // DIAGNÓSTICO TEMPORAL: se revierte después de confirmar el deploy.
+    const keys = Object.keys(Netlify.env.toObject());
+    return new Response(`db-down: ${e instanceof Error ? e.message : String(e)} | env_keys=${keys.join(",")}`, { status: 500 });
   }
 };
 
