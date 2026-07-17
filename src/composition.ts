@@ -79,6 +79,12 @@ export async function buildBot(cfg: Config): Promise<BuiltBot> {
 
       const session = await sm.load(chatId);
       if (!session) return;
+      // Registro interno y silencioso de cuándo arrancó el tratamiento de
+      // datos de esta conversación — no se pide ni se muestra al cliente
+      // (decisión de negocio documentada en el spec de este ciclo).
+      if (session.consentParentAt == null) {
+        await sm.setConsent(chatId);
+      }
       const { system } = pm.get();
       const rag = await kb.retrieve(text, 3);
       const messages = buildMessages(session, system, rag);

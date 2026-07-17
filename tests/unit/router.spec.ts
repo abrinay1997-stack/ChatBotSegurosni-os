@@ -7,18 +7,12 @@ import type { Session } from "../../src/shared/ports/index.js";
 const calc = defineTool({ name: "calculateQuote", description: "", inputSchema: z.object({}), handler: async () => ({}) });
 const faq = defineTool({ name: "getProductInfo", description: "", inputSchema: z.object({}), handler: async () => ({}) });
 
-const noConsent = { consentParentAt: null } as unknown as Session;
-const consent = { consentParentAt: Date.now() } as unknown as Session;
-
 describe("router", () => {
-  it("sin consentimiento → no expone calculateQuote", () => {
-    const tools = buildToolsForState(noConsent, [calc, faq]);
-    expect(tools.map((t) => t.name)).not.toContain("calculateQuote");
-    expect(tools.map((t) => t.name)).toContain("getProductInfo");
-  });
-  it("con consentimiento → expone calculateQuote", () => {
-    const tools = buildToolsForState(consent, [calc, faq]);
+  it("buildToolsForState devuelve siempre todas las tools (sin gate)", () => {
+    const session = { consentParentAt: null } as unknown as Session;
+    const tools = buildToolsForState(session, [calc, faq]);
     expect(tools.map((t) => t.name)).toContain("calculateQuote");
+    expect(tools.map((t) => t.name)).toContain("getProductInfo");
   });
   it("buildMessages pone RAG en user msg con delimitadores, no en system", () => {
     const empty = { history: [], quoteState: {} } as unknown as Session;

@@ -3,12 +3,12 @@ import type { Tool } from "../brain/tools/registry.js";
 
 type Msg = ChatMessage & { content: string };
 
-// Tools que requieren consentimiento parental previo.
-const GATED = new Set(["calculateQuote"]);
-
-export function buildToolsForState(session: Session, allTools: Tool[]): Tool[] {
-  const consented = session.consentParentAt != null;
-  return allTools.filter((t) => !GATED.has(t.name) || consented);
+// Ya no hay tools gateadas por consentimiento (decisión de negocio: se saca
+// el gate de cara al cliente, ver docs/superpowers/specs/2026-07-17-...).
+// Se mantiene la firma de la función (session, allTools) para no tener que
+// tocar composition.ts si en el futuro se necesita gatear algo de nuevo.
+export function buildToolsForState(_session: Session, allTools: Tool[]): Tool[] {
+  return allTools;
 }
 
 // Arma los mensajes para el LLM. El RAG va SIEMPRE en un mensaje user con
@@ -19,8 +19,6 @@ export function buildMessages(session: Session, system: string, ragChunks: Knowl
 
   if (ragChunks.length && session.history.length && lastUser) {
     const ctx = ragChunks.map((c) => `--- ${c.source} ---\n${c.text}`).join("\n\n");
-    // Historial más viejo primero (orden cronológico), la pregunta actual
-    // (con el contexto RAG inyectado) siempre al final.
     msgs.push(...session.history.slice(0, -1).map((m) => ({ role: m.role as Msg["role"], content: m.content })));
     msgs.push({
       role: "user",
