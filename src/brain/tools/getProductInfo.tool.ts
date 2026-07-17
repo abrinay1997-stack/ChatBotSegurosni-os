@@ -2,8 +2,8 @@ import { z } from "zod";
 import { defineTool } from "./registry.js";
 
 export const PRODUCT_INFO = {
-  nombre: "Seguro Educativo Proantec",
-  cobertura: "Cubre la educación del menor si los padres fallecen.",
+  nombre: "Seguro Educativo Juancito Ads",
+  cobertura: "Cubre la educación del menor si el padre/tutor fallece, y accidentes escolares (dentro y fuera del colegio).",
   disclaimer: "DATOS DE EJEMPLO. Términos reales al ir a producción.",
 };
 
