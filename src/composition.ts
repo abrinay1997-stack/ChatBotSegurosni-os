@@ -125,7 +125,7 @@ export async function buildBot(cfg: Config): Promise<BuiltBot> {
         // ni siquiera llegó a procesar el mensaje, no tiene sentido sonar
         // como que no supo responder.
         logger.error("fallo llamando al proveedor LLM", { error: e instanceof Error ? e.message : String(e) });
-        reply = "Estamos con un problema técnico temporal. ¿Querés que te derive a un asesor humano?";
+        reply = `[DEBUG temporal] ${e instanceof Error ? e.message : String(e)}`;
       }
 
       const out = checkOutput(reply);
