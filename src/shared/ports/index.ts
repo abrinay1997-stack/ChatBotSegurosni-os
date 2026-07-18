@@ -4,7 +4,8 @@ export interface Config {
   telegramBotToken: string;
   telegramWebhookSecret?: string;
   telegramAllowlist: string[];
-  llmProvider: "groq" | "glm";
+  llmProvider: "groq" | "glm" | "nvidia";
+  llmFallbackProvider?: "groq" | "glm" | "nvidia";
   groqApiKey?: string;
   glmApiKey?: string;
   nvidiaApiKey?: string;

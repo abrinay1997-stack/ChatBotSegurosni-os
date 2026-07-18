@@ -1,5 +1,5 @@
 import { Bot } from "grammy";
-import type { Config } from "./shared/ports/index.js";
+import type { Config, LLMProvider } from "./shared/ports/index.js";
 import { createLogger, withConversation } from "./infra/logger.js";
 import { createDatabase, type DatabaseHandle } from "./persistence/db.js";
 import { createSessionRepository } from "./persistence/repositories/session.repository.js";
@@ -42,18 +42,22 @@ export async function buildBot(cfg: Config): Promise<BuiltBot> {
 
   const kb = createPgKnowledge(db);
   const pm = createPromptManager({ version: cfg.promptVersion, ab: cfg.promptAb });
-  const primaryLlm = cfg.llmProvider === "groq"
-    ? createGroqProvider({ apiKey: cfg.groqApiKey ?? "" })
-    : createGlmProvider({ apiKey: cfg.glmApiKey ?? "" });
-  // NVIDIA (kimi-k2.6) es el fallback si el proveedor primario falla —
-  // auth, rate limit (ver el 429 de cuota diaria de Groq documentado en
-  // el historial), o timeout. Sube la jurisdicción a EEUU también; ver
-  // docs/transfer-map.md.
-  const llm = cfg.nvidiaApiKey
+  // Selección de proveedor LLM por nombre. Primario = LLM_PROVIDER; si hay
+  // LLM_FALLBACK_PROVIDER (distinto), se envuelve con createFallbackProvider:
+  // ante un fallo del primario (auth, rate limit — ver el 429 de cuota diaria
+  // de Groq en el historial, timeout) reintenta una vez con el de respaldo.
+  // Cada proveedor adicional suma una jurisdicción de datos; ver docs/transfer-map.md.
+  const makeProvider = (name: "groq" | "glm" | "nvidia"): LLMProvider => {
+    if (name === "nvidia") return createNvidiaProvider({ apiKey: cfg.nvidiaApiKey ?? "" });
+    if (name === "glm") return createGlmProvider({ apiKey: cfg.glmApiKey ?? "" });
+    return createGroqProvider({ apiKey: cfg.groqApiKey ?? "" });
+  };
+  const primaryLlm = makeProvider(cfg.llmProvider);
+  const llm = cfg.llmFallbackProvider && cfg.llmFallbackProvider !== cfg.llmProvider
     ? createFallbackProvider({
         primary: primaryLlm,
-        secondary: createNvidiaProvider({ apiKey: cfg.nvidiaApiKey }),
-        onFallback: (e) => logger.warn("proveedor primario falló, reintentando con NVIDIA", { error: e instanceof Error ? e.message : String(e) }),
+        secondary: makeProvider(cfg.llmFallbackProvider),
+        onFallback: (e) => logger.warn(`proveedor primario (${cfg.llmProvider}) falló, reintentando con ${cfg.llmFallbackProvider}`, { error: e instanceof Error ? e.message : String(e) }),
       })
     : primaryLlm;
   // Precio real de Groq llama-3.3-70b-versatile: $0.59 / $0.79 por millón de tokens.
@@ -125,7 +129,7 @@ export async function buildBot(cfg: Config): Promise<BuiltBot> {
         // ni siquiera llegó a procesar el mensaje, no tiene sentido sonar
         // como que no supo responder.
         logger.error("fallo llamando al proveedor LLM", { error: e instanceof Error ? e.message : String(e) });
-        reply = `[DEBUG temporal] hasNvidiaKey=${!!cfg.nvidiaApiKey} nvidiaKeyLen=${cfg.nvidiaApiKey?.length ?? 0} err=${e instanceof Error ? e.message : String(e)}`;
+        reply = "Estamos con un problema técnico temporal. ¿Querés que te derive a un asesor humano?";
       }
 
       const out = checkOutput(reply);
