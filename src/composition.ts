@@ -125,7 +125,7 @@ export async function buildBot(cfg: Config): Promise<BuiltBot> {
         // ni siquiera llegó a procesar el mensaje, no tiene sentido sonar
         // como que no supo responder.
         logger.error("fallo llamando al proveedor LLM", { error: e instanceof Error ? e.message : String(e) });
-        reply = `[DEBUG temporal] ${e instanceof Error ? e.message : String(e)}`;
+        reply = `[DEBUG temporal] hasNvidiaKey=${!!cfg.nvidiaApiKey} nvidiaKeyLen=${cfg.nvidiaApiKey?.length ?? 0} err=${e instanceof Error ? e.message : String(e)}`;
       }
 
       const out = checkOutput(reply);
