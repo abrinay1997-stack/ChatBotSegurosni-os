@@ -104,13 +104,13 @@ export async function buildBot(cfg: Config): Promise<BuiltBot> {
           maxRounds: 3,
         });
         cost.add(result.usage);
-        reply = result.finalResponse ?? "No tengo respuesta para eso. ¿Querés que te derive a un humano?";
+        reply = result.finalResponse ?? `[DEBUG temporal] vacío sin excepción. toolResults=${JSON.stringify(result.toolResults)} truncated=${result.truncated}`;
       } catch (e) {
         // El proveedor LLM (Groq/GLM) puede fallar por auth, rate limit o
         // timeout — se loguea el detalle para diagnosticar en los logs de
         // Netlify, pero al cliente le llega el mismo mensaje de siempre.
         logger.error("fallo llamando al proveedor LLM", { error: e instanceof Error ? e.message : String(e) });
-        reply = "No tengo respuesta para eso. ¿Querés que te derive a un humano?";
+        reply = `[DEBUG temporal] excepción: ${e instanceof Error ? e.message : String(e)}`;
       }
 
       const out = checkOutput(reply);
