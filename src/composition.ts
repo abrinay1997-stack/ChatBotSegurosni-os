@@ -93,16 +93,26 @@ export async function buildBot(cfg: Config): Promise<BuiltBot> {
       const rag = await kb.retrieve(text, 3);
       const messages = buildMessages(session, system, rag);
       const tools = buildToolsForState(session, allTools);
-      const result = await runToolLoop({
-        provider: llm,
-        tools,
-        messages,
-        ctx: { chatId } as never,
-        maxRounds: 3,
-      });
-      cost.add(result.usage);
 
-      let reply = result.finalResponse ?? "No tengo respuesta para eso. ¿Querés que te derive a un humano?";
+      let reply: string;
+      try {
+        const result = await runToolLoop({
+          provider: llm,
+          tools,
+          messages,
+          ctx: { chatId } as never,
+          maxRounds: 3,
+        });
+        cost.add(result.usage);
+        reply = result.finalResponse ?? "No tengo respuesta para eso. ¿Querés que te derive a un humano?";
+      } catch (e) {
+        // El proveedor LLM (Groq/GLM) puede fallar por auth, rate limit o
+        // timeout — se loguea el detalle para diagnosticar en los logs de
+        // Netlify, pero al cliente le llega el mismo mensaje de siempre.
+        logger.error("fallo llamando al proveedor LLM", { error: e instanceof Error ? e.message : String(e) });
+        reply = "No tengo respuesta para eso. ¿Querés que te derive a un humano?";
+      }
+
       const out = checkOutput(reply);
       if (!out.ok) reply = "No puedo responder eso. ¿Te derivo a un asesor?";
       await sm.appendTurn(chatId, "assistant", reply);

@@ -34,6 +34,14 @@ export function toOpenAIMessages(messages: ChatMessage[]): Record<string, unknow
 // Groq y GLM son ambos OpenAI-compatible: el parsing del response es idéntico.
 export async function parseOpenAIResponse(res: FetchResponse): Promise<LLMResponse> {
   const json = await res.json();
+  // Sin este chequeo, un error HTTP (401/400/429/5xx) se parseaba como
+  // respuesta válida vacía (json.choices es undefined) y el bot contestaba
+  // silenciosamente "No tengo respuesta para eso" en vez de exponer la
+  // causa real — indistinguible de un modelo que genuinamente no supo responder.
+  if (res.ok === false || json.error) {
+    const detail = json.error?.message ?? JSON.stringify(json).slice(0, 500);
+    throw new Error(`LLM provider error (status ${res.status ?? "?"}): ${detail}`);
+  }
   const choice = json.choices?.[0];
   const toolCalls: ToolCall[] | undefined = choice?.message?.tool_calls?.map((tc: any) => ({
     id: tc.id,
