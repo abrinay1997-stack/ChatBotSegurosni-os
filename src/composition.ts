@@ -10,6 +10,8 @@ import { createPgKnowledge } from "./domain/knowledge/rag.js";
 import { createPromptManager } from "./brain/prompt.manager.js";
 import { createGroqProvider } from "./brain/providers/groq.provider.js";
 import { createGlmProvider } from "./brain/providers/glm.provider.js";
+import { createNvidiaProvider } from "./brain/providers/nvidia.provider.js";
+import { createFallbackProvider } from "./brain/providers/fallback.provider.js";
 import { createCostGuard } from "./brain/cost.guard.js";
 import {
   makeCalculateQuoteTool,
@@ -40,9 +42,20 @@ export async function buildBot(cfg: Config): Promise<BuiltBot> {
 
   const kb = createPgKnowledge(db);
   const pm = createPromptManager({ version: cfg.promptVersion, ab: cfg.promptAb });
-  const llm = cfg.llmProvider === "groq"
+  const primaryLlm = cfg.llmProvider === "groq"
     ? createGroqProvider({ apiKey: cfg.groqApiKey ?? "" })
     : createGlmProvider({ apiKey: cfg.glmApiKey ?? "" });
+  // NVIDIA (kimi-k2.6) es el fallback si el proveedor primario falla —
+  // auth, rate limit (ver el 429 de cuota diaria de Groq documentado en
+  // el historial), o timeout. Sube la jurisdicción a EEUU también; ver
+  // docs/transfer-map.md.
+  const llm = cfg.nvidiaApiKey
+    ? createFallbackProvider({
+        primary: primaryLlm,
+        secondary: createNvidiaProvider({ apiKey: cfg.nvidiaApiKey }),
+        onFallback: (e) => logger.warn("proveedor primario falló, reintentando con NVIDIA", { error: e instanceof Error ? e.message : String(e) }),
+      })
+    : primaryLlm;
   // Precio real de Groq llama-3.3-70b-versatile: $0.59 / $0.79 por millón de tokens.
   const cost = createCostGuard({ budgetUsd: cfg.llmDailyBudgetUsd, pricePer1k: { input: 0.00059, output: 0.00079 } });
   const limiter = createRateLimiter({ msgsPerMin: 20, quotesPerHour: 10, globalQuotesPerMin: 5 });

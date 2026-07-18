@@ -7,6 +7,7 @@ export interface Config {
   llmProvider: "groq" | "glm";
   groqApiKey?: string;
   glmApiKey?: string;
+  nvidiaApiKey?: string;
   databaseUrl: string;
   llmDailyBudgetUsd: number;
   llmProviderResidentOnly: boolean;

@@ -1,7 +1,10 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { createGroqProvider } from "../../src/brain/providers/groq.provider.js";
 import { createGlmProvider } from "../../src/brain/providers/glm.provider.js";
+import { createNvidiaProvider } from "../../src/brain/providers/nvidia.provider.js";
+import { createFallbackProvider } from "../../src/brain/providers/fallback.provider.js";
 import type { FetchImpl } from "../../src/brain/providers/openai-response.js";
+import type { LLMProvider } from "../../src/shared/ports/index.js";
 
 // Fake fetch que devuelve respuestas OpenAI-compatible canónicas — 100% offline.
 function fakeFetch(canned: any): FetchImpl {
@@ -85,5 +88,49 @@ describe("GLM provider (contract, fake fetch)", () => {
     const r = await p.chat({ messages: [{ role: "user", content: "cotiza" }] });
     expect(r.toolCalls?.[0].name).toBe("calculateQuote");
     expect(captured.url).toBe("https://open.bigmodel.cn/api/paas/v4/chat/completions");
+  });
+});
+
+describe("NVIDIA provider (contract, fake fetch)", () => {
+  it("usa el endpoint y el modelo por defecto", async () => {
+    let captured: any = {};
+    const spy: FetchImpl = async (_url, init) => {
+      captured = { url: _url, init };
+      return { json: async () => textResponse, ok: true, status: 200 };
+    };
+    const p = createNvidiaProvider({ apiKey: "k", fetchImpl: spy });
+    const r = await p.chat({ messages: [{ role: "user", content: "hola" }] });
+    expect(r.content).toBe("hola");
+    expect(captured.url).toBe("https://integrate.api.nvidia.com/v1/chat/completions");
+    const body = JSON.parse(captured.init.body as string);
+    expect(body.model).toBe("meta/llama-3.1-70b-instruct");
+  });
+});
+
+describe("Fallback provider", () => {
+  it("usa el primario si responde bien, sin tocar el secundario", async () => {
+    const primary: LLMProvider = { chat: vi.fn(async () => ({ content: "primario", usage: { promptTokens: 1, completionTokens: 1 } })) };
+    const secondary: LLMProvider = { chat: vi.fn(async () => ({ content: "secundario", usage: { promptTokens: 1, completionTokens: 1 } })) };
+    const p = createFallbackProvider({ primary, secondary });
+    const r = await p.chat({ messages: [{ role: "user", content: "hola" }] });
+    expect(r.content).toBe("primario");
+    expect(secondary.chat).not.toHaveBeenCalled();
+  });
+
+  it("reintenta con el secundario si el primario tira (429/401/5xx)", async () => {
+    const primary: LLMProvider = { chat: vi.fn(async () => { throw new Error("LLM provider error (status 429): rate limit"); }) };
+    const secondary: LLMProvider = { chat: vi.fn(async () => ({ content: "secundario", usage: { promptTokens: 1, completionTokens: 1 } })) };
+    const onFallback = vi.fn();
+    const p = createFallbackProvider({ primary, secondary, onFallback });
+    const r = await p.chat({ messages: [{ role: "user", content: "hola" }] });
+    expect(r.content).toBe("secundario");
+    expect(onFallback).toHaveBeenCalledOnce();
+  });
+
+  it("propaga el error del secundario si también falla", async () => {
+    const primary: LLMProvider = { chat: vi.fn(async () => { throw new Error("primario caído"); }) };
+    const secondary: LLMProvider = { chat: vi.fn(async () => { throw new Error("secundario caído"); }) };
+    const p = createFallbackProvider({ primary, secondary });
+    await expect(p.chat({ messages: [{ role: "user", content: "hola" }] })).rejects.toThrow("secundario caído");
   });
 });

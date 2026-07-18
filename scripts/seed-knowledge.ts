@@ -15,7 +15,11 @@ async function main() {
   for (const file of readdirSync(docsDir)) {
     if (!file.endsWith(".md")) continue;
     const src = join(docsDir, file);
-    const content = readFileSync(src, "utf-8");
+    // Normaliza CRLF→LF: en checkouts de Windows (autocrlf) los .md quedan
+    // con \r\n, y como el id de cada chunk es "${file}:${title}", un \r
+    // colado en el título rompe el ON CONFLICT — cada re-seed generaba
+    // filas duplicadas en vez de actualizar las existentes.
+    const content = readFileSync(src, "utf-8").replace(/\r\n/g, "\n");
     let section = "";
     let title = file;
 
