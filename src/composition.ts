@@ -15,11 +15,7 @@ import { createFallbackProvider } from "./brain/providers/fallback.provider.js";
 import { createCostGuard } from "./brain/cost.guard.js";
 import {
   makeCalculateQuoteTool,
-  makeLookupKnowledgeTool,
-  makeGetProductInfoTool,
   makeEscalateToHumanTool,
-  makeShowPlansTool,
-  makeRecommendPlanTool,
   runToolLoop,
 } from "./brain/tools/index.js";
 import { buildToolsForState, buildMessages } from "./conversation/router.js";
@@ -70,13 +66,15 @@ export async function buildBot(cfg: Config): Promise<BuiltBot> {
     limiter,
   });
 
+  // Solo herramientas FUNCIONALES. Se quitaron las de recuperación
+  // (showPlans/lookupKnowledge/getProductInfo/recommendPlan): la LLM ahora
+  // responde libre desde el contexto RAG inyectado, en 1 sola llamada, sin la
+  // danza de tool-calling que disparaba múltiples llamadas y errores 400 de
+  // Groq. calculateQuote se mantiene (matemática exacta, no inventar precios) y
+  // escalateToHuman (derivar). Ver auditoría en docs/errors-learned.md 2026-07-19.
   const allTools = [
     makeCalculateQuoteTool(engine, limiter),
-    makeLookupKnowledgeTool(kb),
-    makeGetProductInfoTool(),
     makeEscalateToHumanTool(),
-    makeShowPlansTool(kb),
-    makeRecommendPlanTool(),
   ];
 
   async function handleText(chatId: string, text: string, updateId: number) {
@@ -107,7 +105,18 @@ export async function buildBot(cfg: Config): Promise<BuiltBot> {
         await sm.setConsent(chatId);
       }
       const { system } = pm.get();
-      const rag = await kb.retrieve(text, 3);
+      // Al no haber ya tools que recuperen info, TODO el conocimiento que la LLM
+      // necesita tiene que venir en este contexto. Combinamos:
+      //  - essentials(): planes + qué cubre, SIEMPRE (así "¿qué planes hay?"
+      //    nunca queda sin respuesta aunque el full-text no matchee la frase).
+      //  - retrieve(text): chunks específicos de la consulta (FAQ, reclamación,
+      //    contacto, edades…) con el fallback OR ya incorporado.
+      const [essentials, queryChunks] = await Promise.all([
+        kb.essentials(),
+        kb.retrieve(text, 3),
+      ]);
+      const seenChunk = new Set<string>();
+      const rag = [...essentials, ...queryChunks].filter((c) => (seenChunk.has(c.id) ? false : (seenChunk.add(c.id), true)));
       const messages = buildMessages(session, system, rag);
       const tools = buildToolsForState(session, allTools);
 
@@ -118,7 +127,9 @@ export async function buildBot(cfg: Config): Promise<BuiltBot> {
           tools,
           messages,
           ctx: { chatId } as never,
-          maxRounds: 3,
+          // Con solo tools funcionales bastan 2 rondas: 1 para responder o
+          // llamar calculateQuote/escalate, y 1 para redactar con el resultado.
+          maxRounds: 2,
         });
         cost.add(result.usage);
         reply = result.finalResponse ?? "No tengo respuesta para eso. ¿Querés que te derive a un humano?";

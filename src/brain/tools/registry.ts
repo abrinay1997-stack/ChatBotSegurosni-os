@@ -99,5 +99,16 @@ export async function runToolLoop(opts: {
       }
     }
   }
+  // maxRounds agotado y el modelo seguía pidiendo herramientas en vez de
+  // redactar. En lugar de devolver vacío (que hacía caer al caller en el
+  // fallback genérico "No tengo respuesta"), forzamos una última llamada SIN
+  // herramientas para obtener una respuesta en texto natural con lo que ya se
+  // recolectó en `messages` (incluye los resultados de las tools ejecutadas).
+  if (!last.content) {
+    const forced = await opts.provider.chat({ messages });
+    totalUsage.promptTokens += forced.usage.promptTokens;
+    totalUsage.completionTokens += forced.usage.completionTokens;
+    return { toolResults, finalResponse: forced.content, truncated: true, usage: totalUsage };
+  }
   return { toolResults, finalResponse: last.content, truncated: true, usage: totalUsage };
 }

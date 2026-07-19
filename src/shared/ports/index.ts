@@ -74,6 +74,9 @@ export interface KnowledgeChunk {
 
 export interface KnowledgeRepository {
   retrieve(query: string, k: number): Promise<KnowledgeChunk[]>;
+  // Info esencial del producto (planes + qué cubre) que SIEMPRE debe estar en
+  // el contexto, independiente de si la búsqueda full-text acierta la consulta.
+  essentials(): Promise<KnowledgeChunk[]>;
 }
 
 export interface VectorStore {

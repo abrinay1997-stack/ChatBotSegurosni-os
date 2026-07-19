@@ -10,3 +10,6 @@ data/
 coverage/
 .vscode/
 .netlify
+
+# Datos de sesión / worktrees de Claude Code
+.claude/

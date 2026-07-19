@@ -30,14 +30,24 @@ describe("tool registry", () => {
     expect(res.toolResults[0].ok).toBe(false);
     expect(res.toolResults[0].error).toMatch(/a/);
   });
-  it("para tras maxRounds", async () => {
+  it("para tras maxRounds y fuerza una respuesta final en texto (sin tools)", async () => {
     let calls = 0;
     const fake: LLMProvider = {
-      async chat() { calls++; return { toolCalls: [{ id: String(calls), name: "add", arguments: { a: 1, b: 1 } }], usage: { promptTokens: 0, completionTokens: 0 } }; },
+      async chat(req) {
+        calls++;
+        // Sin tools ofrecidas => el modelo responde en texto. Esto simula la
+        // llamada forzada final que hace runToolLoop cuando se agotan las rondas
+        // con el modelo aún pidiendo herramientas, para no devolver vacío.
+        if (!req.tools || req.tools.length === 0) {
+          return { content: "respuesta forzada", usage: { promptTokens: 0, completionTokens: 0 } };
+        }
+        return { toolCalls: [{ id: String(calls), name: "add", arguments: { a: 1, b: 1 } }], usage: { promptTokens: 0, completionTokens: 0 } };
+      },
     };
     const res = await runToolLoop({ provider: fake, tools: [add], messages: [], ctx: {} as any, maxRounds: 3 });
-    expect(calls).toBe(3);
+    expect(calls).toBe(4); // 3 rondas con tools + 1 forzada sin tools
     expect(res.truncated).toBe(true);
+    expect(res.finalResponse).toBe("respuesta forzada");
   });
   it("la 2da ronda incluye el mensaje assistant con tool_calls y el tool con tool_call_id (formato OpenAI-compatible)", async () => {
     const seenRequests: any[] = [];

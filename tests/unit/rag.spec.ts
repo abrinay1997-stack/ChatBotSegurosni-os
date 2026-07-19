@@ -39,4 +39,27 @@ describe.skipIf(!hasTestDb)("PG knowledge (full-text search)", () => {
       expect(Array.isArray(chunks)).toBe(true);
     }
   });
+
+  it("fallback OR: una consulta conversacional que el AND deja vacía igual recupera algo", async () => {
+    const h = createDatabase(TEST_DB_URL);
+    const kb = createPgKnowledge(h);
+    // El AND (websearch) de "¿qué planes de seguro ofrecen ustedes?" no matchea
+    // ningún chunk (ninguno tiene todos los términos juntos) → antes devolvía
+    // vacío y el bot no podía nombrar los planes. Con el fallback OR recupera
+    // por el término 'planes' (de la base sembrada). Debe venir NO vacío.
+    const chunks = await kb.retrieve("¿qué planes de seguro ofrecen ustedes?", 5);
+    expect(chunks.length).toBeGreaterThan(0);
+    expect(chunks.some((c) => c.source === "plans.md")).toBe(true);
+  });
+
+  it("essentials() trae la info core (plans.md + product.md) sembrada", async () => {
+    const h = createDatabase(TEST_DB_URL);
+    const kb = createPgKnowledge(h);
+    const ess = await kb.essentials();
+    const sources = new Set(ess.map((c) => c.source));
+    // La base de test está sembrada con el contenido real; essentials no debe venir vacío
+    // y debe cubrir planes y/o producto (nunca terms/faq sueltos como esenciales).
+    expect(ess.length).toBeGreaterThan(0);
+    for (const s of sources) expect(["plans.md", "product.md"]).toContain(s);
+  });
 });
