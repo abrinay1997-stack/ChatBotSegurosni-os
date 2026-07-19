@@ -103,7 +103,7 @@ describe("NVIDIA provider (contract, fake fetch)", () => {
     expect(r.content).toBe("hola");
     expect(captured.url).toBe("https://integrate.api.nvidia.com/v1/chat/completions");
     const body = JSON.parse(captured.init.body as string);
-    expect(body.model).toBe("meta/llama-3.1-70b-instruct");
+    expect(body.model).toBe("meta/llama-3.1-8b-instruct");
   });
 });
 

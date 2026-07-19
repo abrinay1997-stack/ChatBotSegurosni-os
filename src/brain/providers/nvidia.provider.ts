@@ -3,11 +3,13 @@ import { toolToJsonSchema, type Tool } from "../tools/registry.js";
 import { parseOpenAIResponse, toOpenAIMessages, type FetchImpl } from "./openai-response.js";
 
 export function createNvidiaProvider(opts: { apiKey: string; model?: string; fetchImpl?: FetchImpl }): LLMProvider {
-  // kimi-k2.6 figura en el catálogo pero devuelve 404 ("Function not found
-  // for account") incluso desde el Playground oficial de NVIDIA (2026-07-17)
-  // — backend roto del lado de NVIDIA, no un problema de la key. Usar un
-  // modelo confirmado funcionando hasta que lo arreglen.
-  const model = opts.model ?? "meta/llama-3.1-70b-instruct";
+  // Default: llama-3.1-8b (latencia ~1.7s). NO usar 70b acá: mide ~12.8s por
+  // llamada, y las funciones de Netlify cortan a los 10s → 502 Bad Gateway →
+  // Telegram no recibe respuesta (diagnosticado 2026-07-19, ver
+  // docs/errors-learned.md). Como este provider es el fallback serverless,
+  // prioriza latencia sobre calidad. kimi-k2.6 seguía dando 404 del lado de
+  // NVIDIA al momento de escribir esto.
+  const model = opts.model ?? "meta/llama-3.1-8b-instruct";
   const fetchImpl: FetchImpl = opts.fetchImpl ?? (globalThis.fetch as unknown as FetchImpl);
   return {
     async chat(req: LLMChatRequest) {

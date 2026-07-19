@@ -48,7 +48,7 @@ export async function buildBot(cfg: Config): Promise<BuiltBot> {
   // de Groq en el historial, timeout) reintenta una vez con el de respaldo.
   // Cada proveedor adicional suma una jurisdicción de datos; ver docs/transfer-map.md.
   const makeProvider = (name: "groq" | "glm" | "nvidia"): LLMProvider => {
-    if (name === "nvidia") return createNvidiaProvider({ apiKey: cfg.nvidiaApiKey ?? "" });
+    if (name === "nvidia") return createNvidiaProvider({ apiKey: cfg.nvidiaApiKey ?? "", model: cfg.nvidiaModel });
     if (name === "glm") return createGlmProvider({ apiKey: cfg.glmApiKey ?? "" });
     return createGroqProvider({ apiKey: cfg.groqApiKey ?? "" });
   };

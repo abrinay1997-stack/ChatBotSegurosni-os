@@ -9,6 +9,7 @@ export interface Config {
   groqApiKey?: string;
   glmApiKey?: string;
   nvidiaApiKey?: string;
+  nvidiaModel?: string;
   databaseUrl: string;
   llmDailyBudgetUsd: number;
   llmProviderResidentOnly: boolean;
