@@ -6,12 +6,12 @@ import { createSessionManager } from "../../src/conversation/session.manager.js"
 import { createQuoteEngine } from "../../src/domain/quote/QuoteEngine.js";
 import tariffs from "../../src/domain/quote/tariffs.example.json" with { type: "json" };
 
-const TEST_DB_URL = process.env.DATABASE_URL_TEST ?? process.env.DATABASE_URL!;
+import { TEST_DB_URL, hasTestDb } from "../helpers/testDb.js";
 
 // E2E: SessionManager + QuoteEngine contra la rama Postgres de test (sin red
 // de Telegram/LLM). setConsent() se mantiene como registro interno silencioso
 // (ya no gatea ninguna tool, ver Tarea 2 del plan de ruteo conversacional).
-describe("e2e: sesión + cotización", () => {
+describe.skipIf(!hasTestDb)("e2e: sesión + cotización", () => {
   it("registra consentimiento interno y produce una prima", async () => {
     const h = createDatabase(TEST_DB_URL);
     const sm = createSessionManager(createSessionRepository(h), { maxContextTokens: 6000 });

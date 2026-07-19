@@ -4,7 +4,7 @@ import { neon } from "@neondatabase/serverless";
 import { createDatabase, type DatabaseHandle } from "../../src/persistence/db.js";
 import { createPgKnowledge } from "../../src/domain/knowledge/rag.js";
 
-const TEST_DB_URL = process.env.DATABASE_URL_TEST ?? process.env.DATABASE_URL!;
+import { TEST_DB_URL, hasTestDb } from "../helpers/testDb.js";
 
 async function insertChunk(id: string, source: string, text: string) {
   const sql = neon(TEST_DB_URL);
@@ -17,7 +17,7 @@ async function deleteChunk(id: string) {
   await sql`DELETE FROM knowledge WHERE id = ${id}`;
 }
 
-describe("PG knowledge (full-text search)", () => {
+describe.skipIf(!hasTestDb)("PG knowledge (full-text search)", () => {
   it("recupera chunks por query", async () => {
     const id = randomUUID();
     await insertChunk(id, "test.md", "Para cotizar escribí quiero cotizar y el bot te guía.");

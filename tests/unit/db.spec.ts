@@ -2,9 +2,9 @@ import { describe, it, expect } from "vitest";
 import { randomUUID } from "node:crypto";
 import { createDatabase, type DatabaseHandle } from "../../src/persistence/db.js";
 
-const TEST_DB_URL = process.env.DATABASE_URL_TEST ?? process.env.DATABASE_URL!;
+import { TEST_DB_URL, hasTestDb } from "../helpers/testDb.js";
 
-describe("createDatabase", () => {
+describe.skipIf(!hasTestDb)("createDatabase", () => {
   it("permite insertar y leer una sesión", async () => {
     const h: DatabaseHandle = createDatabase(TEST_DB_URL);
     const chatId = randomUUID();

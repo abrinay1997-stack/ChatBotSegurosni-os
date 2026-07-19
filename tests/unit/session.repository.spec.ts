@@ -3,9 +3,9 @@ import { randomUUID } from "node:crypto";
 import { createDatabase } from "../../src/persistence/db.js";
 import { createSessionRepository } from "../../src/persistence/repositories/session.repository.js";
 
-const TEST_DB_URL = process.env.DATABASE_URL_TEST ?? process.env.DATABASE_URL!;
+import { TEST_DB_URL, hasTestDb } from "../helpers/testDb.js";
 
-describe("SessionRepository", () => {
+describe.skipIf(!hasTestDb)("SessionRepository", () => {
   it("save + get redondo", async () => {
     const h = createDatabase(TEST_DB_URL);
     const repo = createSessionRepository(h);

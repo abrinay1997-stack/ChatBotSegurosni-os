@@ -4,9 +4,9 @@ import { createDatabase } from "../../src/persistence/db.js";
 import { createSessionRepository } from "../../src/persistence/repositories/session.repository.js";
 import { createSessionManager } from "../../src/conversation/session.manager.js";
 
-const TEST_DB_URL = process.env.DATABASE_URL_TEST ?? process.env.DATABASE_URL!;
+import { TEST_DB_URL, hasTestDb } from "../helpers/testDb.js";
 
-describe("SessionManager", () => {
+describe.skipIf(!hasTestDb)("SessionManager", () => {
   it("appendTurn + setQuoteState mantienen estado separado", async () => {
     const h = createDatabase(TEST_DB_URL);
     const sm = createSessionManager(createSessionRepository(h), { maxContextTokens: 1000 });
