@@ -89,3 +89,12 @@
 **Fix:** default del provider NVIDIA cambiado a `meta/llama-3.1-8b-instruct` (rápido), configurable vía `NVIDIA_MODEL`. Config de producción: `LLM_PROVIDER=groq` (primario, rápido y buena calidad) + `LLM_FALLBACK_PROVIDER=nvidia` (respaldo 8b, rápido, sin límite de cuota). Nunca hay timeout.
 **Prevención:** en serverless con timeout corto (Netlify 10s, Lambda configurable), la latencia del LLM es una restricción de arquitectura, no un detalle. Medir `time_total` de cada modelo candidato ANTES de ponerlo en producción, y multiplicar por el máximo de rondas del tool-loop. Un modelo "mejor" pero lento es peor que uno rápido si tumba la request entera. El síntoma (bot mudo) es idéntico al de cuota agotada — distinguir mirando `getWebhookInfo` (502 = timeout/crash de la función; sin error = otra cosa).
 **Archivos:** `src/brain/providers/nvidia.provider.ts`, `src/infra/config.ts`, `src/composition.ts:50-54`.
+
+## [2026-07-19] `processed_updates.update_id` era INTEGER — bomba de tiempo: desborda con update_ids grandes de Telegram → 502
+
+**Contexto:** verificando el fix del timeout, un POST de prueba al webhook con `update_id` grande (timestamp en ms) devolvía 502 en ~0.5s (crash, no timeout).
+**Error:** `NeonDbError: value "1784482110314" is out of range for type integer` (code 22003) al hacer `INSERT INTO processed_updates`. La excepción sube sin capturar → grammY devuelve 500/502 → Telegram no entrega y reintenta el mismo update en loop.
+**Causa raíz:** la columna `update_id` se creó como `INTEGER` (int32, máx 2.147e9). Los `update_id` de Telegram son incrementales y sin techo: con el tiempo superan int32. El primer update que desborda hace fallar `markProcessed` y, como es lo PRIMERO que corre en `handleText`, tumba TODO el manejo del mensaje. No se detectó antes porque los update_ids actuales todavía entran en int32 — es un fallo que aparece solo, en el futuro, sin cambio de código.
+**Fix:** `update_id` → `BIGINT` en `schema.ts` y `db-setup.ts`; `ALTER TABLE processed_updates ALTER COLUMN update_id TYPE BIGINT` aplicado a la DB de producción (widening no destructivo).
+**Prevención:** cualquier ID proveniente de una API externa que se guarde en Postgres va en `BIGINT`, no `INTEGER` — el ahorro de 4 bytes no compensa un fallo que aparece meses después en producción sin aviso. Regla general: IDs externos, timestamps epoch (seg y ms), contadores monótonos → `BIGINT` por defecto.
+**Archivos:** `src/persistence/schema.ts`, `scripts/db-setup.ts`.

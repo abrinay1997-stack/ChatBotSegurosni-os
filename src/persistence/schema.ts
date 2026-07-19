@@ -9,7 +9,11 @@ export const sessions = pgTable("sessions", {
 });
 
 export const processedUpdates = pgTable("processed_updates", {
-  updateId: integer("update_id").primaryKey(),
+  // BIGINT, no INTEGER: los update_id de Telegram crecen sin techo y superan
+  // el máximo de int32 (~2.147e9) con el tiempo. Con INTEGER, el primer
+  // update_id que desborda hace fallar el INSERT de markProcessed → la función
+  // crashea (502) y el bot deja de responder. Ver docs/errors-learned.md 2026-07-19.
+  updateId: bigint("update_id", { mode: "number" }).primaryKey(),
   processedAt: bigint("processed_at", { mode: "number" }),
 });
 

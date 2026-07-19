@@ -14,9 +14,12 @@ async function main() {
     updated_at BIGINT
   )`;
   await sql`CREATE TABLE IF NOT EXISTS processed_updates (
-    update_id INTEGER PRIMARY KEY,
+    update_id BIGINT PRIMARY KEY,
     processed_at BIGINT
   )`;
+  // Migración para tablas ya creadas con INTEGER: los update_id de Telegram
+  // superan int32 con el tiempo y desbordan. Widening int->bigint, no destructivo.
+  await sql`ALTER TABLE processed_updates ALTER COLUMN update_id TYPE BIGINT`;
   await sql`CREATE TABLE IF NOT EXISTS leads (
     id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     chat_id TEXT NOT NULL,
